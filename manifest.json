@@ -10,7 +10,7 @@
     "versions": [
       {
         "version": "0.1.0.1",
-        "changelog": "Preview release. Seven verified source samples; the planned 30-source target is incomplete. Check source and compatibility reports before installing.",
+        "changelog": "Fix plugin loading by registering AngleSharp alongside the plugin assembly. Automatically validate packaged dependencies and the published catalog after every release.",
         "targetAbi": "10.11.3.0",
         "sourceUrl": "https://github.com/ThuGie/JellyTome/releases/download/v0.1.0.1/JellyTome_0.1.0.1.zip",
         "checksum": "18b7767e2a6650b6c6aa858ad74a51fb",

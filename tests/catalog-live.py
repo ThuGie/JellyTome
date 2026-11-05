@@ -1,7 +1,7 @@
 """Verify real Jellyfin catalog discovery and optional installation on the isolated test server."""
 import argparse,json,pathlib,urllib.parse,urllib.request
-parser=argparse.ArgumentParser();parser.add_argument('--version',required=True);parser.add_argument('--install',action='store_true');args=parser.parse_args()
-root=pathlib.Path(__file__).resolve().parents[1];session=json.loads((root/'artifacts/jellyfin-live/session.json').read_text());base=session['base'];url='https://raw.githubusercontent.com/ThuGie/JellyTome/main/manifest.json'
+parser=argparse.ArgumentParser();parser.add_argument('--version',required=True);parser.add_argument('--install',action='store_true');parser.add_argument('--repository-url',default='https://raw.githubusercontent.com/ThuGie/JellyTome/main/manifest.json');args=parser.parse_args()
+root=pathlib.Path(__file__).resolve().parents[1];session=json.loads((root/'artifacts/jellyfin-live/session.json').read_text());base=session['base'];url=args.repository_url
 def call(path,method='GET',body=None):
     request=urllib.request.Request(base+path,method=method,headers={'X-Emby-Token':session['token'],'Content-Type':'application/json'},data=None if body is None else json.dumps(body).encode())
     with urllib.request.urlopen(request,timeout=90) as response:
