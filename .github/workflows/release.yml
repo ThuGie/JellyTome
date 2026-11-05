@@ -39,6 +39,7 @@ jobs:
           with open(os.environ['GITHUB_ENV'],'a') as f: f.write('PLUGIN_VERSION='+version+'\n')
           PY
       - run: dotnet test tests/JellyManga.Tests -c Release
+      - run: python -m unittest discover -s tests/packaging
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm test
@@ -88,3 +89,7 @@ jobs:
             git commit -m "chore: publish JellyTome $PLUGIN_VERSION catalog"
             git push origin HEAD:main
           fi
+      - name: Verify published catalog matches release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/verify_catalog.py --repository "$GITHUB_REPOSITORY" --version "$PLUGIN_VERSION" --archive "artifacts/releases/JellyTome_$PLUGIN_VERSION.zip"

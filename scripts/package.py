@@ -11,7 +11,7 @@ if args.repository and (len(args.repository.split('/')) != 2 or any(not p or any
 subprocess.run(['dotnet', 'build', str(root/'src/Jellyfin.Plugin.JellyManga'), '-c', 'Release', '--nologo', '-p:Version='+args.version], check=True)
 output = root/'artifacts/releases'; output.mkdir(parents=True, exist_ok=True)
 archive = output/('JellyTome_'+args.version+'.zip')
-meta = dict(guid='165db579-6287-4f53-985b-7e503449eb33', name='JellyTome', description='Manga discovery, downloading, monitoring and reading inside Jellyfin. Preview release; see source test report.', overview='Manga library and reader', owner='ThuGie', category='General', version=args.version, targetAbi='10.11.3.0', status='Active', autoUpdate=True, imagePath='thumb.png', assemblies=['Jellyfin.Plugin.JellyManga.dll'])
+meta = dict(guid='165db579-6287-4f53-985b-7e503449eb33', name='JellyTome', description='Manga discovery, downloading, monitoring and reading inside Jellyfin. Preview release; see source test report.', overview='Manga library and reader', owner='ThuGie', category='General', version=args.version, targetAbi='10.11.3.0', status='Active', autoUpdate=True, imagePath='thumb.png', assemblies=['AngleSharp.dll', 'Jellyfin.Plugin.JellyManga.dll'])
 build = root/'src/Jellyfin.Plugin.JellyManga/bin/Release/net9.0'
 with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:
     for name in ['Jellyfin.Plugin.JellyManga.dll', 'AngleSharp.dll']:
@@ -31,3 +31,5 @@ if args.repository:
     manifest = [{k:meta[k] for k in ['guid','name','description','overview','owner','category']} | dict(imageUrl=f'https://raw.githubusercontent.com/{args.repository}/main/thumb.png', versions=sorted([version]+versions,key=lambda v:tuple(map(int,v['version'].split('.'))),reverse=True))]
     (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
 print('Created '+str(archive)+'\nMD5 '+digest)
+from verify_release import validate
+validate(archive, args.version, output/'manifest.json' if args.repository else None)
