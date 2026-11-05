@@ -8,6 +8,8 @@ A Jellyfin server plugin for manga discovery, immediate requests, CBZ downloads,
 
 ## Install
 
+Use **0.1.0.1 or newer**. The original 0.1.0.0 release omitted AngleSharp from Jellyfin's assembly allowlist and could appear as NotSupported. Install the newer catalog version and restart Jellyfin; do not delete manga files or the plugin database.
+
 Catalog URL: `https://raw.githubusercontent.com/ThuGie/JellyTome/main/manifest.json`
 
 Add this URL under **Dashboard → Plugins → Repositories**, then install JellyTome from the catalog. Manual installation is also available below.
