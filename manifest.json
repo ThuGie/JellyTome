@@ -9,6 +9,15 @@
     "imageUrl": "https://raw.githubusercontent.com/ThuGie/JellyTome/main/thumb.png",
     "versions": [
       {
+        "version": "0.1.0.1",
+        "changelog": "Preview release. Seven verified source samples; the planned 30-source target is incomplete. Check source and compatibility reports before installing.",
+        "targetAbi": "10.11.3.0",
+        "sourceUrl": "https://github.com/ThuGie/JellyTome/releases/download/v0.1.0.1/JellyTome_0.1.0.1.zip",
+        "checksum": "18b7767e2a6650b6c6aa858ad74a51fb",
+        "timestamp": "2026-11-05T21:27:35.738747+00:00",
+        "dependencies": []
+      },
+      {
         "version": "0.1.0.0",
         "changelog": "Preview release. Seven verified source samples; the planned 30-source target is incomplete. Check source and compatibility reports before installing.",
         "targetAbi": "10.11.3.0",
