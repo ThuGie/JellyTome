@@ -1,0 +1,152 @@
+using System.Globalization;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using AngleSharp.Dom;
+using AngleSharp.Html.Parser;
+
+namespace Jellyfin.Plugin.JellyManga.Sources;
+
+public interface IMangaSource
+{
+    SourceDefinition Definition { get; }
+    Task<IReadOnlyList<Series>> Search(string query, CancellationToken ct);
+    Task<Series> Details(string url, CancellationToken ct);
+    Task<IReadOnlyList<Chapter>> Chapters(Series series, CancellationToken ct);
+    Task<IReadOnlyList<PageImage>> Pages(Chapter chapter, CancellationToken ct);
+}
+
+public static partial class Extraction
+{
+    [GeneratedRegex(@"(?:chapter|chap|ch\.?|episode|ep\.?|#)\s*[-:#]?\s*(\d+(?:\.\d+)?)", RegexOptions.IgnoreCase)]
+    private static partial Regex ChapterPattern();
+    [GeneratedRegex(@"\d+(?:\.\d+)?")]
+    private static partial Regex NumberPattern();
+    public static decimal ChapterNumber(string title)
+    {
+        var match = ChapterPattern().Match(title);
+        var value = match.Success ? match.Groups[1].Value : NumberPattern().Match(title).Value;
+        return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var n) ? n : 0;
+    }
+    public static string Text(IElement? node) => Regex.Replace(node?.TextContent ?? "", @"\s+", " ").Trim();
+    public static JsonElement Path(JsonElement element, string path)
+    {
+        if (string.IsNullOrEmpty(path) || path == "$") return element;
+        foreach (var key in path.TrimStart('$', '.').Split('.'))
+        {
+            if (element.ValueKind == JsonValueKind.Array && int.TryParse(key, out var index) && index >= 0 && index < element.GetArrayLength()) element = element[index];
+            else if (element.ValueKind == JsonValueKind.Object && element.TryGetProperty(key, out var child)) element = child;
+            else return default;
+        }
+        return element;
+    }
+    public static string Value(JsonElement element, string path) { var v = Path(element, path); return v.ValueKind == JsonValueKind.String ? v.GetString()! : v.ValueKind == JsonValueKind.Undefined ? "" : v.ToString(); }
+    public static string Image(IElement image, string preferred) => new[] { preferred, "data-src", "data-lazy-src", "src" }.Select(a => image.GetAttribute(a)?.Trim()).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s) && !s.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) ?? "";
+}
+
+public sealed class RuleSource(SourceDefinition definition, ISourceHttp http) : IMangaSource
+{
+    public SourceDefinition Definition => definition;
+    private readonly HtmlParser _parser = new();
+    private Uri Resolve(string value, string? parent = null) => SafeHttp.Resolve(value, parent ?? definition.BaseUrl, definition);
+    private Series MakeSeries(string url, string title, string description = "", string cover = "") => new(Identity.For(definition.Id, url), definition.Id, url, title, description, cover);
+    private static IElement? Select(IElement node, string selector) => string.IsNullOrEmpty(selector) ? node : node.QuerySelector(selector);
+    private string Url(IElement? node, string parent) => node?.GetAttribute("href") is string href ? Resolve(href, parent).ToString() : "";
+    public async Task<IReadOnlyList<Series>> Search(string query, CancellationToken ct)
+    {
+        var url = Resolve(definition.SearchPath.Replace("{query}", Uri.EscapeDataString(query)));
+        var output = new List<Series>(); var visited = new HashSet<string>();
+        for (int page = 0; page < definition.MaxPagination && visited.Add(url.ToString()); page++)
+        {
+            var text = await http.Text(url, definition, ct);
+            if (definition.Kind == "json")
+            {
+                using var json = JsonDocument.Parse(text); var items = Extraction.Path(json.RootElement, definition.JsonItemsPath);
+                if (items.ValueKind != JsonValueKind.Array) throw new InvalidDataException("Search JSON path must resolve to an array.");
+                foreach (var item in items.EnumerateArray()) output.Add(MakeSeries(Resolve(Extraction.Value(item, definition.JsonUrlPath)).ToString(), Extraction.Value(item, definition.JsonTitlePath)));
+                break;
+            }
+            var doc = await _parser.ParseDocumentAsync(text, ct);
+            foreach (var item in doc.QuerySelectorAll(definition.SearchItems))
+            {
+                var link = Select(item, definition.SearchLink); var href = Url(link, url.ToString());
+                if (href.Length == 0) continue;
+                var image = item.QuerySelector(definition.SearchCover);
+                var cover = image == null ? "" : Extraction.Image(image, definition.ImageAttribute);
+                output.Add(MakeSeries(href, Extraction.Text(link), cover: cover.Length == 0 ? "" : Resolve(cover, url.ToString()).ToString()));
+            }
+            if (string.IsNullOrEmpty(definition.NextSelector) || doc.QuerySelector(definition.NextSelector)?.GetAttribute("href") is not string next) break;
+            url = Resolve(next, url.ToString());
+        }
+        var terms = Regex.Split(query, @"\W+").Where(t => t.Length > 0).ToArray();
+        return output.Where(s => s.Title.Length != 0 && terms.All(t => s.Title.Contains(t, StringComparison.OrdinalIgnoreCase))).DistinctBy(s => s.Id).Take(200).ToList();
+    }
+    public async Task<Series> Details(string url, CancellationToken ct)
+    {
+        var uri = Resolve(url); var text = await http.Text(uri, definition, ct);
+        if (definition.Kind == "json") { using var json = JsonDocument.Parse(text); return MakeSeries(uri.ToString(), Extraction.Value(json.RootElement, definition.JsonTitlePath)); }
+        var doc = await _parser.ParseDocumentAsync(text, ct); var title = Extraction.Text(doc.QuerySelector(definition.TitleSelector));
+        if (title.Length == 0) throw new InvalidDataException("Series title selector returned no title; source rules may have changed.");
+        return MakeSeries(uri.ToString(), title, Extraction.Text(doc.QuerySelector(definition.DescriptionSelector)));
+    }
+    public async Task<IReadOnlyList<Chapter>> Chapters(Series series, CancellationToken ct)
+    {
+        var seriesParts = new Uri(series.Url).AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var url = Resolve(definition.ChaptersPath.Replace("{series}", series.Url.TrimEnd('/')).Replace("{seriesId}", seriesParts.Length > 1 ? seriesParts[1] : ""));
+        var text = definition.ChaptersMethod == "POST" ? await http.FormText(url, definition, ct) : await http.Text(url, definition, ct); var output = new List<Chapter>();
+        if (definition.Kind == "json")
+        {
+            using var json = JsonDocument.Parse(text); var items = Extraction.Path(json.RootElement, definition.JsonChaptersPath);
+            if (items.ValueKind != JsonValueKind.Array) throw new InvalidDataException("Chapter JSON path must resolve to an array.");
+            foreach (var item in items.EnumerateArray()) { var href = Resolve(Extraction.Value(item, definition.JsonUrlPath), url.ToString()).ToString(); var title = Extraction.Value(item, definition.JsonTitlePath); output.Add(new(Identity.For(series.Id, href), series.Id, href, title, Extraction.ChapterNumber(title))); }
+        }
+        else
+        {
+            var visited = new HashSet<string>();
+            for (int page = 0; page < definition.MaxPagination && visited.Add(url.ToString()); page++)
+            {
+                var doc = await _parser.ParseDocumentAsync(text, ct);
+                foreach (var item in doc.QuerySelectorAll(definition.ChapterItems))
+                {
+                    var link = Select(item, definition.ChapterLink); var href = Url(link, url.ToString()); var title = Extraction.Text(link);
+                    if (href.Length != 0) output.Add(new(Identity.For(series.Id, href), series.Id, href, title, Extraction.ChapterNumber(title)));
+                }
+                if (string.IsNullOrEmpty(definition.NextSelector) || doc.QuerySelector(definition.NextSelector)?.GetAttribute("href") is not string next) break;
+                url = Resolve(next, url.ToString()); text = await http.Text(url, definition, ct);
+            }
+        }
+        if (output.Count == 0) throw new InvalidDataException("No English chapters found. The site may require a specialized adapter, login, or updated rules.");
+        return output.DistinctBy(c => c.Id).OrderBy(c => c.Number).ThenBy(c => c.Title, StringComparer.Ordinal).ToList();
+    }
+    public async Task<IReadOnlyList<PageImage>> Pages(Chapter chapter, CancellationToken ct)
+    {
+        var parts = new Uri(chapter.Url).AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var url = Resolve(definition.PagesPath.Replace("{chapter}", chapter.Url).Replace("{chapterId}", parts.Length > 1 ? parts[1] : "")); var text = await http.Text(url, definition, ct); var output = new List<PageImage>();
+        if (definition.Kind == "json")
+        {
+            using var json = JsonDocument.Parse(text); var items = Extraction.Path(json.RootElement, definition.JsonPagesPath);
+            if (items.ValueKind != JsonValueKind.Array) throw new InvalidDataException("Page JSON path must resolve to an array.");
+            foreach (var item in items.EnumerateArray()) output.Add(new(Resolve(item.ValueKind == JsonValueKind.String ? item.GetString()! : Extraction.Value(item, definition.JsonUrlPath), chapter.Url).ToString(), chapter.Url));
+        }
+        else if (definition.ScriptImagePattern.Length > 0)
+        {
+            var match = Regex.Match(text, definition.ScriptImagePattern, RegexOptions.Singleline, TimeSpan.FromSeconds(1));
+            if (!match.Success) throw new InvalidDataException("Embedded image array was not found.");
+            var array = Newtonsoft.Json.Linq.JArray.Parse(match.Groups["images"].Value);
+            foreach (var item in array) output.Add(new(Resolve(item.ToString(), chapter.Url).ToString(), chapter.Url));
+        }
+        else
+        {
+            var visited = new HashSet<string>();
+            for (int page = 0; page < definition.MaxPagination && visited.Add(url.ToString()); page++)
+            {
+                var doc = await _parser.ParseDocumentAsync(text, ct);
+                foreach (var node in doc.QuerySelectorAll(definition.PagesSelector)) { var image = Extraction.Image(node, definition.ImageAttribute); if (image.Length > 0) output.Add(new(Resolve(image, url.ToString()).ToString(), chapter.Url)); }
+                if (string.IsNullOrEmpty(definition.NextSelector) || doc.QuerySelector(definition.NextSelector)?.GetAttribute("href") is not string next) break;
+                url = Resolve(next, url.ToString()); text = await http.Text(url, definition, ct);
+            }
+        }
+        output = output.DistinctBy(p => p.Url).ToList(); if (definition.ReversePages) output.Reverse();
+        if (output.Count is 0 or > 2000) throw new InvalidDataException("Invalid page count; source extraction failed.");
+        return output;
+    }
+}

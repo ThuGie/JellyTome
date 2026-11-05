@@ -1,0 +1,12 @@
+[
+  {
+    "guid": "165db579-6287-4f53-985b-7e503449eb33",
+    "name": "JellyTome",
+    "description": "Manga discovery, downloading, monitoring and reading inside Jellyfin. Preview release; see source test report.",
+    "overview": "Manga library and reader",
+    "owner": "ThuGie",
+    "category": "General",
+    "imageUrl": "https://raw.githubusercontent.com/ThuGie/JellyTome/main/thumb.png",
+    "versions": []
+  }
+]

@@ -1,0 +1,20 @@
+<div id="jellyMangaConfigurationPage" data-role="page" class="page type-interior pluginConfigurationPage">
+  <div data-role="content"><div class="content-primary">
+    <h1>JellyTome</h1><p>Manage manga sources, storage, users, downloads, and monitoring.</p>
+    <button id="jm-open-admin" type="button" class="raised button-submit emby-button">Open manga dashboard</button>
+    <p id="jm-config-status" role="status"></p>
+  </div></div>
+  <script>
+  (function () {
+    var page = document.getElementById('jellyMangaConfigurationPage');
+    page.querySelector('#jm-open-admin').onclick = function () {
+      if (window.JellyManga) { window.JellyManga.open('admin'); return; }
+      var link = document.createElement('link'); link.rel = 'stylesheet'; link.href = ApiClient.getUrl('JellyManga/assets/app.css'); document.head.appendChild(link);
+      var script = document.createElement('script'); script.src = ApiClient.getUrl('JellyManga/assets/app.js');
+      script.onload = function () { window.JellyManga.open('admin'); };
+      script.onerror = function () { page.querySelector('#jm-config-status').textContent = 'Could not load dashboard resources.'; };
+      document.head.appendChild(script);
+    };
+  })();
+  </script>
+</div>

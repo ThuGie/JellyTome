@@ -1,0 +1,90 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*.*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Four-part plugin version, for example 0.1.0.0
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: jellytome-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Resolve and validate version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          python - <<'PY'
+          import os,re
+          version=os.environ.get('INPUT_VERSION') or os.environ['GITHUB_REF_NAME'].removeprefix('v')
+          if not re.fullmatch(r'\d+\.\d+\.\d+\.\d+',version): raise SystemExit('Version must contain four numbers')
+          with open(os.environ['GITHUB_ENV'],'a') as f: f.write('PLUGIN_VERSION='+version+'\n')
+          PY
+      - run: dotnet test tests/JellyManga.Tests -c Release
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Package release
+        run: python scripts/package.py --repository "$GITHUB_REPOSITORY" --version "$PLUGIN_VERSION"
+      - name: Write release notes
+        run: |
+          cat > artifacts/releases/notes.md <<'EOF'
+          JellyTome preview: manga discovery, immediate requests, automatic downloads and monitoring, an embedded reader, and an administrator dashboard for Jellyfin 10.11.x.
+
+          Seven source samples are verified. The planned 30-source target is incomplete. Physical Android app testing remains outstanding; desktop/tablet/mobile browser and real Jellyfin integration tests passed. See the checked-in source and compatibility reports.
+
+          Install File Transformation first, then add the JellyTome catalog in Jellyfin:
+
+          https://raw.githubusercontent.com/ThuGie/JellyTome/main/manifest.json
+          EOF
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$PLUGIN_VERSION"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "artifacts/releases/JellyTome_$PLUGIN_VERSION.zip" "artifacts/releases/JellyTome_$PLUGIN_VERSION.zip.sha256" --clobber
+          else
+            gh release create "$tag" "artifacts/releases/JellyTome_$PLUGIN_VERSION.zip" "artifacts/releases/JellyTome_$PLUGIN_VERSION.zip.sha256" --target "$GITHUB_SHA" --title "JellyTome $PLUGIN_VERSION (preview)" --notes-file artifacts/releases/notes.md --prerelease
+          fi
+      - name: Update Jellyfin catalog on main
+        run: |
+          cp artifacts/releases/manifest.json "$RUNNER_TEMP/jellytome-version.json"
+          git fetch origin main
+          git checkout -B catalog-update origin/main
+          python - <<'PY'
+          import json,os,pathlib
+          path=pathlib.Path('manifest.json')
+          incoming=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'jellytome-version.json').read_text())[0]
+          existing=json.loads(path.read_text())[0] if path.exists() else {}
+          versions={v['version']:v for v in existing.get('versions',[])}
+          version=os.environ['PLUGIN_VERSION']
+          versions[version]=next(v for v in incoming['versions'] if v['version']==version)
+          incoming['versions']=sorted(versions.values(),key=lambda v:tuple(map(int,v['version'].split('.'))),reverse=True)
+          path.write_text(json.dumps([incoming],indent=2)+'\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: publish JellyTome $PLUGIN_VERSION catalog"
+            git push origin HEAD:main
+          fi
