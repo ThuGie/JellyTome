@@ -9,6 +9,15 @@
     "imageUrl": "https://raw.githubusercontent.com/ThuGie/JellyTome/main/thumb.png",
     "versions": [
       {
+        "version": "0.1.0.7",
+        "changelog": "- Add AVIF image validation and image/avif responses for converted CBZ chapters.\n- Default new downloads to full-resolution AVIF quality 65; add conversion and quality controls in Settings.\n- Use Jellyfin FFmpeg with libaom-av1, two encoder slots, cancellation, staged output validation, and atomic completion.\n- Retain existing AVIF and animated pages. Supply a backed-up script for existing CBZ conversion.",
+        "targetAbi": "10.11.3.0",
+        "sourceUrl": "https://github.com/ThuGie/JellyTome/releases/download/v0.1.0.7/JellyTome_0.1.0.7.zip",
+        "checksum": "b4129c29d4dc80703ee0f8c98823d810",
+        "timestamp": "2026-11-06T23:48:56.490357+00:00",
+        "dependencies": []
+      },
+      {
         "version": "0.1.0.6",
         "changelog": "- Replace five-page vertical batches with continuous scrolling through the entire chapter, without a Continue scrolling button.\n- Lazy-load nearby pages with two fetches at a time; release distant image data while preserving page positions and dimensions for scrolling back.\n- Track reading progress while scrolling, restore the selected page, and cancel pending loads when leaving the reader or switching modes.\n- Verify scrolling beyond page five, backward loading, memory cleanup, progress, and switching modes at desktop/tablet/mobile sizes.",
         "targetAbi": "10.11.3.0",
