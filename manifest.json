@@ -9,6 +9,15 @@
     "imageUrl": "https://raw.githubusercontent.com/ThuGie/JellyTome/main/thumb.png",
     "versions": [
       {
+        "version": "0.1.0.6",
+        "changelog": "- Replace five-page vertical batches with continuous scrolling through the entire chapter, without a Continue scrolling button.\n- Lazy-load nearby pages with two fetches at a time; release distant image data while preserving page positions and dimensions for scrolling back.\n- Track reading progress while scrolling, restore the selected page, and cancel pending loads when leaving the reader or switching modes.\n- Verify scrolling beyond page five, backward loading, memory cleanup, progress, and switching modes at desktop/tablet/mobile sizes.",
+        "targetAbi": "10.11.3.0",
+        "sourceUrl": "https://github.com/ThuGie/JellyTome/releases/download/v0.1.0.6/JellyTome_0.1.0.6.zip",
+        "checksum": "df78f693e73d306e8d656ab569a24cac",
+        "timestamp": "2026-11-06T23:38:58.417736+00:00",
+        "dependencies": []
+      },
+      {
         "version": "0.1.0.5",
         "changelog": "- Add an editable concurrent chapter limit per website (1\u20138) in Sources, alongside the clearly labeled global limit in Settings. Defaults remain two globally and one per website.\n- Apply both limits to the queue immediately; lowering a limit lets active chapters finish before starting more. Preserve source verification when saving download limits.\n- Permit overlapping image transfers from separate chapter jobs while preserving request pacing, Retry-After backoff, and destination validation.\n- Test same-website and cross-website queue limits, live changes, persistence, authorization, browser controls, and concurrent paced image transfers.",
         "targetAbi": "10.11.3.0",
