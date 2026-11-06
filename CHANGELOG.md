@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0.5
+
+- Add an editable concurrent chapter limit per website (1–8) in Sources, alongside the clearly labeled global limit in Settings. Defaults remain two globally and one per website.
+- Apply both limits to the queue immediately; lowering a limit lets active chapters finish before starting more. Preserve source verification when saving download limits.
+- Permit overlapping image transfers from separate chapter jobs while preserving request pacing, Retry-After backoff, and destination validation.
+- Test same-website and cross-website queue limits, live changes, persistence, authorization, browser controls, and concurrent paced image transfers.
+
 ## 0.1.0.4
 
 - Expand browser-inspected source adapters and publish complete chapter validation results for 30 distinct websites. Untested and failed candidates remain disabled.

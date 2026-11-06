@@ -60,6 +60,12 @@ public sealed class Store
             var job = new DownloadJob(chapter, sourceId, user); Put("job", chapter.Id, job); return job;
         }
     }
+    public DownloadJob? Claim(IReadOnlyDictionary<string, int> activeCounts, IReadOnlyDictionary<string, int> sourceLimits, int globalLimit)
+    {
+        if (activeCounts.Values.Sum() >= globalLimit) return null;
+        var busy = activeCounts.Where(s => !sourceLimits.TryGetValue(s.Key, out var limit) || s.Value >= limit).Select(s => s.Key).ToHashSet();
+        return Claim(busy, sourceLimits.Keys.ToHashSet());
+    }
     public DownloadJob? Claim(IReadOnlySet<string> busySources, IReadOnlySet<string> enabled)
     {
         lock (_gate)

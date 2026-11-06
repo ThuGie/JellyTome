@@ -28,6 +28,40 @@ public sealed class CoreTests : IDisposable
         var reopened = Store(); reopened.Recover(); Assert.Equal("Queued", reopened.Get<DownloadJob>("job", chapter.Id)!.Status);
     }
     [Fact]
+    public void QueueHonorsWebsiteAndGlobalLimitsIncludingChanges()
+    {
+        var store = Store();
+        for (var i = 0; i < 5; i++) store.Enqueue(Chapter("Chapter " + (i + 1)), "fixture", "user");
+        var limits = new Dictionary<string, int> { ["fixture"] = 2, ["other"] = 2 };
+        var counts = new Dictionary<string, int>();
+        Assert.Equal("fixture", store.Claim(counts, limits, 4)!.SourceId); counts["fixture"] = 1;
+        Assert.Equal("fixture", store.Claim(counts, limits, 4)!.SourceId); counts["fixture"] = 2;
+        store.Enqueue(Chapter("Other Chapter 10"), "other", "user");
+        Assert.Equal("other", store.Claim(counts, limits, 4)!.SourceId); counts["other"] = 1;
+        Assert.Null(store.Claim(counts, limits, 4));
+        limits["fixture"] = 4;
+        Assert.Equal("fixture", store.Claim(counts, limits, 4)!.SourceId); counts["fixture"] = 3;
+        Assert.Null(store.Claim(counts, limits, 4));
+        // Lowering a limit does not cancel jobs; it prevents further claims.
+        limits["fixture"] = 1; counts.Remove("other");
+        Assert.Null(store.Claim(counts, limits, 4));
+        counts["fixture"] = 0; limits.Remove("fixture");
+        Assert.Null(store.Claim(counts, limits, 4));
+    }
+    [Fact]
+    public void WebsiteLimitPersistsWithoutDiscardingVerificationOrAdminChoices()
+    {
+        var store = Store(); var registry = new SourceRegistry(store, new FixtureHttp());
+        registry.Save(Source() with { Status = "Verified sample", Priority = 7 });
+        var before = registry.Get("fixture");
+        registry.SetDownloadLimit("fixture", 4);
+        var saved = new SourceRegistry(Store(), new FixtureHttp()).Get("fixture");
+        Assert.Equal(4, saved.MaxConcurrentDownloads); Assert.Equal(before.Status, saved.Status); Assert.Equal(7, saved.Priority);
+        Assert.Throws<ArgumentException>(() => registry.SetDownloadLimit("fixture", 0));
+        Assert.Throws<ArgumentException>(() => registry.SetDownloadLimit("fixture", 9));
+        Assert.Equal(1, new SourceDefinition().MaxConcurrentDownloads);
+    }
+    [Fact]
     public void CancelledDownloadCannotBeCompletedByStaleWorker()
     {
         var store = Store(); var chapter = Chapter(); store.Enqueue(chapter, "fixture", "user"); var job = store.Claim(new HashSet<string>(), new HashSet<string> { "fixture" })!;

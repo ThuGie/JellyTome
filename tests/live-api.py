@@ -28,6 +28,14 @@ database=live/'data/plugins/Jellyfin.Plugin.JellyManga/jellymanga.db';assert dat
 with sqlite3.connect(database) as db:
     db.execute('INSERT OR REPLACE INTO records VALUES(?,?,?)',('series',series_id,json.dumps(dict(series=series,monitoring=False))))
     db.execute('INSERT OR REPLACE INTO records VALUES(?,?,?)',('job',chapter_id,json.dumps(dict(chapter=chapter,sourceId='fixture',requestedBy=session['userId'],status='Complete',attempts=1,relativePath=relative,pages=2))))
+source=next(s for s in call('/JellyManga/admin/sources') if s['id']=='mangapill')
+try:
+    call('/JellyManga/admin/sources/mangapill/downloads','PUT',dict(maxConcurrentDownloads=4),expected=204)
+    updated=next(s for s in call('/JellyManga/admin/sources') if s['id']=='mangapill')
+    assert updated['maxConcurrentDownloads']==4 and updated['status']==source['status']
+    for invalid in [0,9]:call('/JellyManga/admin/sources/mangapill/downloads','PUT',dict(maxConcurrentDownloads=invalid),expected=400)
+finally:call('/JellyManga/admin/sources/mangapill/downloads','PUT',dict(maxConcurrentDownloads=source.get('maxConcurrentDownloads',1)),expected=204)
+call('/JellyManga/admin/sources/mangapill/downloads','PUT',dict(maxConcurrentDownloads=4),token=None,expected=401)
 call('/JellyManga/session');assert call('/JellyManga/chapters/'+chapter_id+'/manifest')['pages']==2
 assert call('/JellyManga/chapters/'+chapter_id+'/pages/0')==png
 call('/JellyManga/chapters/'+chapter_id+'/pages/-1',expected=400)
@@ -43,6 +51,7 @@ try:
     for endpoint in ['/session','/library','/downloads','/progress','/sources','/chapters/'+chapter_id+'/manifest','/chapters/'+chapter_id+'/pages/0','/admin/overview','/admin/sources','/admin/settings']:
         call('/JellyManga'+endpoint,token=token,expected=403)
     policy['EnabledFolders']=[session['libraryId']];call('/Users/'+user_id+'/Policy','POST',policy,expected=204)
+    call('/JellyManga/admin/sources/mangapill/downloads','PUT',dict(maxConcurrentDownloads=4),token=token,expected=403)
     call('/JellyManga/session',token=token);assert call('/JellyManga/progress',token=token)==[]
     call('/JellyManga/chapters/'+chapter_id+'/manifest',token=token)
     call('/JellyManga/progress','PUT',progress|dict(page=0,bookmarked=False),token=token,expected=204)

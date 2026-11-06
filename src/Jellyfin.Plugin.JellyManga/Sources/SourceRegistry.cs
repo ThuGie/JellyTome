@@ -13,7 +13,7 @@ public sealed class SourceRegistry(Store store, ISourceHttp http)
     }
     private readonly List<SourceDefinition> _catalog = JsonSerializer.Deserialize<List<SourceDefinition>>(Plugin.ReadResource("Sources.catalog.json"), Store.Json)!;
     private readonly List<SourceDefinition> _legacy = JsonSerializer.Deserialize<List<SourceDefinition>>(Plugin.ReadResource("Sources.legacy-catalog-v0.1.0.3.json"), Store.Json)!;
-    private static string Rules(SourceDefinition source) => JsonSerializer.Serialize(source with { Enabled = false, Removed = false, Priority = 100, Status = "" }, Store.Json);
+    private static string Rules(SourceDefinition source) => JsonSerializer.Serialize(source with { Enabled = false, Removed = false, Priority = 100, MaxConcurrentDownloads = 1, Status = "" }, Store.Json);
     public IReadOnlyList<SourceDefinition> All()
     {
         var overrides = store.All<SourceDefinition>("source").ToDictionary(s => s.Id);
@@ -25,7 +25,7 @@ public sealed class SourceRegistry(Store store, ISourceHttp http)
             // Old live checks persisted whole built-in definitions. Refresh unchanged legacy rules,
             // keeping administrator enable/remove/priority choices and preserving custom rules.
             if (previous != null && Rules(saved) == Rules(previous) && Rules(bundled) != Rules(previous))
-                saved = bundled with { Enabled = saved.Enabled, Removed = saved.Removed, Priority = saved.Priority };
+                saved = bundled with { Enabled = saved.Enabled, Removed = saved.Removed, Priority = saved.Priority, MaxConcurrentDownloads = saved.MaxConcurrentDownloads };
             merged.Add(saved);
         }
         merged.AddRange(overrides.Values); return merged.OrderBy(s => s.Priority).ThenBy(s => s.Name).ToList();
@@ -49,6 +49,7 @@ public sealed class SourceRegistry(Store store, ISourceHttp http)
         SafeHttp.ValidateUri(new Uri(source.BaseUrl), source);
         if (source.AllowedHosts.Length > 30 || source.AllowedHosts.Any(h => Uri.CheckHostName(h) == UriHostNameType.Unknown || h.Contains('*'))) throw new ArgumentException("Use explicit CDN hostnames, without wildcards.");
         foreach (var host in source.AllowedHosts) SafeHttp.ValidateUri(new Uri("https://" + host), source);
+        if (source.MaxConcurrentDownloads is < 1 or > 8) throw new ArgumentException("Per-website concurrent downloads must be 1–8.");
         if (source.DelayMilliseconds is < 250 or > 60000 || source.MaxPagination is < 1 or > 100) throw new ArgumentException("Invalid rate limit or pagination limit.");
         if (source.ChaptersMethod is not ("GET" or "POST")) throw new ArgumentException("Chapter retrieval method must be GET or POST.");
         if (source.Kind == "mangadex" && (new Uri(source.BaseUrl).Host != "mangadex.org" || !source.AllowedHosts.Contains("api.mangadex.org"))) throw new ArgumentException("MangaDex adapter requires its canonical domain and API host.");
@@ -59,6 +60,11 @@ public sealed class SourceRegistry(Store store, ISourceHttp http)
             var doc = new AngleSharp.Html.Parser.HtmlParser().ParseDocument("<html></html>");
             foreach (var selector in new[] { source.SearchItems, source.SearchLink, source.SearchCover, source.TitleSelector, source.DescriptionSelector, source.ChapterItems, source.ChapterLink, source.PagesSelector, source.NextSelector }.Where(s => s.Length > 0)) doc.QuerySelectorAll(selector);
         }
+    }
+    public void SetDownloadLimit(string id, int limit)
+    {
+        var definition = Get(id, false) with { MaxConcurrentDownloads = limit }; Validate(definition);
+        store.Put("source", id, definition);
     }
     public void Save(SourceDefinition definition) { Validate(definition); store.Put("source", definition.Id, definition with { Status = "Untested" }); store.Delete("check", definition.Id); }
     public void Remove(string id) { var d = Get(id, false); store.Put("source", id, d with { Enabled = false, Removed = true }); }

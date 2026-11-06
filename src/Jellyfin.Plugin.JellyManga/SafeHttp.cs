@@ -18,6 +18,7 @@ public sealed class SafeHttp : ISourceHttp, IDisposable
     private readonly HttpClient _client;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly ConcurrentDictionary<string, DateTimeOffset> _last = new();
+    internal SafeHttp(HttpMessageHandler handler) { _client = new(handler) { Timeout = TimeSpan.FromSeconds(60) }; }
     public SafeHttp()
     {
         _client = new(new SocketsHttpHandler {
@@ -73,11 +74,12 @@ public sealed class SafeHttp : ISourceHttp, IDisposable
         deadline.CancelAfter(TimeSpan.FromSeconds(60));
         ct = deadline.Token;
         var originalHost = uri.IdnHost;
-        var mutex = _locks.GetOrAdd(source.Id, _ => new(1)); await mutex.WaitAsync(ct);
+        var mutex = _locks.GetOrAdd(source.Id, _ => new(1)); var held = false;
         try
         {
             for (int redirect = 0; redirect < 6; redirect++)
             {
+                await mutex.WaitAsync(ct); held = true;
                 ValidateUri(uri, source);
                 if (_last.TryGetValue(source.Id, out var last))
                 {
@@ -95,13 +97,16 @@ public sealed class SafeHttp : ISourceHttp, IDisposable
                 if (!string.IsNullOrEmpty(referer)) { var r = new Uri(referer); ValidateUri(r, source); request.Headers.Referrer = r; }
                 _last[source.Id] = DateTimeOffset.UtcNow;
                 using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-                if ((int)response.StatusCode is >= 300 and <= 399 && response.Headers.Location != null) { uri = new Uri(uri, response.Headers.Location); if (response.StatusCode is HttpStatusCode.SeeOther or HttpStatusCode.MovedPermanently or HttpStatusCode.Found) form = false; continue; }
+                if ((int)response.StatusCode is >= 300 and <= 399 && response.Headers.Location != null) { uri = new Uri(uri, response.Headers.Location); if (response.StatusCode is HttpStatusCode.SeeOther or HttpStatusCode.MovedPermanently or HttpStatusCode.Found) form = false; mutex.Release(); held = false; continue; }
                 if ((int)response.StatusCode == 429)
                 {
                     var until = response.Headers.RetryAfter?.Date ?? DateTimeOffset.UtcNow.Add(response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(5));
                     _last[source.Id] = until;
                 }
                 response.EnsureSuccessStatusCode();
+                // Pace request starts and honor Retry-After under the lock. Allow
+                // response bodies from separate chapter jobs to transfer concurrently.
+                mutex.Release(); held = false;
                 if (response.Content.Headers.ContentLength > limit) throw new HttpRequestException("Source response exceeds size limit.");
                 var mediaType = response.Content.Headers.ContentType?.MediaType;
                 if (image && mediaType != null && mediaType != "application/octet-stream" && !mediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)) throw new HttpRequestException("Expected an image; source may require authentication or a challenge.");
@@ -111,7 +116,7 @@ public sealed class SafeHttp : ISourceHttp, IDisposable
             }
             throw new HttpRequestException("Too many redirects.");
         }
-        finally { mutex.Release(); }
+        finally { if (held) mutex.Release(); }
     }
     public void Dispose() { _client.Dispose(); foreach (var mutex in _locks.Values) mutex.Dispose(); }
 }

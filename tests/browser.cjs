@@ -41,6 +41,7 @@ const server = http.createServer(async (req, res) => {
     else if (route === 'progress') { if (body) { progress = [body]; res.statusCode = 204; res.end(); return; } result = progress; }
     else if (route === 'admin/overview') result = { injection: true, usedBytes: 1024, downloads: { Complete: 1 }, checks: [], monitored: [{ series, monitoring: true }], libraries: [{ name: 'Manga', itemId: 'lib' }], users: [{ id: 'user-1', username: 'Reader' }] };
     else if (route === 'admin/sources') result = [source];
+    else if (route === 'admin/sources/fixture/downloads' && req.method === 'PUT') { source.maxConcurrentDownloads = body.maxConcurrentDownloads; res.statusCode = 204; res.end(); return; }
     else if (route === 'admin/settings') { if (body) { savedSettings = body; res.statusCode = 204; res.end(); return; } result = savedSettings || { storagePath: '/manga', libraryId: 'lib', storageLimitBytes: 50 * 1073741824, deniedUsers: [], monitorMinutes: 360, downloadConcurrency: 2 }; }
     else { res.statusCode = 404; result = { error: 'Fixture route missing: ' + route }; }
     res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(result));
@@ -67,8 +68,15 @@ const server = http.createServer(async (req, res) => {
             await page.getByRole('combobox', { name: 'Reading mode' }).selectOption('vertical'); await page.waitForTimeout(350); assert.equal(await page.locator('.jm-reader-pages img').count(), 5); assertions++;
             await page.screenshot({ path: path.join(artifacts, name + '-reader.png') });
             await page.getByRole('button', { name: '← Library', exact: true }).click(); await page.goto(`http://127.0.0.1:${server.address().port}/base/web/configurationpage?name=JellyManga`); await page.getByRole('button', { name: 'Sources', exact: true }).click(); await page.getByRole('button', { name: 'Edit / rules' }).waitFor();
+            await page.getByLabel('Max concurrent downloads · Fixture source').fill('4');
+            await page.getByRole('button', { name: 'Save download limit', exact: true }).click();
+            await page.getByRole('status').filter({hasText:'Website download limit saved'}).waitFor();
+            assert.equal(source.maxConcurrentDownloads, 4); assertions++;
+            await page.getByRole('button', { name: 'Sources', exact: true }).click();
+            assert.equal(await page.getByLabel('Max concurrent downloads · Fixture source').inputValue(), '4'); assertions++;
             await page.screenshot({ path: path.join(artifacts, name + '-sources.png') });
-            await page.getByRole('button', { name: 'Settings', exact: true }).click(); await page.getByRole('button', { name: 'Save settings' }).click(); await page.getByRole('status').filter({ hasText: 'saved' }).waitFor(); assertions++;
+            await page.getByRole('button', { name: 'Settings', exact: true }).click(); await page.getByLabel('Global concurrent chapter downloads (1–8)').fill('4'); await page.getByRole('button', { name: 'Save settings' }).click(); await page.getByRole('status').filter({ hasText: 'saved' }).waitFor(); assertions++;
+            assert.equal(savedSettings.downloadConcurrency, 4); assertions++;
             assert.equal(await page.locator('#jm-app').evaluate(e => e.scrollWidth <= e.clientWidth), true); assertions++;
             assert.equal(await page.getByRole('button', {name:'Discover',exact:true}).count(),0); assertions++;
             await page.getByRole('button', {name:'Choose folder',exact:true}).click();

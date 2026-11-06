@@ -18,4 +18,5 @@
     <EmbeddedResource Include="Sources/catalog.json" />
     <EmbeddedResource Include="Sources/legacy-catalog-v0.1.0.3.json" />
   </ItemGroup>
+  <ItemGroup><InternalsVisibleTo Include="JellyManga.Tests" /></ItemGroup>
 </Project>

@@ -150,6 +150,8 @@ public sealed class MangaController(Store store, SourceRegistry sources, MangaSe
     public ActionResult AdminSources() => Ok(sources.All());
     [HttpPut("admin/sources/{id}"), Authorize(Policy = "RequiresElevation")]
     public ActionResult Source(string id, [FromBody] SourceDefinition source) { if (id != source.Id) throw new ArgumentException("Source identifier mismatch."); sources.Save(source); return NoContent(); }
+    [HttpPut("admin/sources/{id}/downloads"), Authorize(Policy = "RequiresElevation")]
+    public ActionResult SourceDownloads(string id, [FromBody] SourceDownloadSettings settings) { sources.SetDownloadLimit(id, settings.MaxConcurrentDownloads); return NoContent(); }
     [HttpDelete("admin/sources/{id}"), Authorize(Policy = "RequiresElevation")]
     public ActionResult RemoveSource(string id) { sources.Remove(id); return NoContent(); }
     [HttpPost("admin/sources/import"), Authorize(Policy = "RequiresElevation")]

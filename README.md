@@ -27,8 +27,8 @@ For a Synology package installation, use the plugin directory belonging to that 
 - Embedded discovery, library, continue-reading, downloads, and administrator pages using Jellyfin accounts.
 - Responsive RTL/LTR, double-page, and bounded vertical reading; keyboard/touch controls, zoom, fullscreen, bookmarks, chapter navigation, and progress sync.
 - Immediate requests for permitted users. Administrators can block individual users in addition to the normal library permissions.
-- Persistent SQLite download queue with deduplication, retry backoff, per-source serialization, cancellation, pause/resume, and restart recovery.
-- English chapter discovery and six-hour monitoring by default; two chapter downloads globally by default.
+- Persistent SQLite download queue with deduplication, retry backoff, editable per-website chapter concurrency, cancellation, pause/resume, and restart recovery.
+- English chapter discovery and six-hour monitoring by default; two chapter downloads globally and one per website by default. Adjust the global limit in Settings and each website’s limit in Sources (both 1–8); the lower applicable limit wins. Source request delays remain enforced. Lowering limits lets active chapters finish.
 - CBZ archives with ComicInfo metadata, bounded image/chapter sizes, temporary staging, atomic final moves, and storage budgets.
 - Administrator source catalog, custom HTML/JSON rules, import/export, live tests, source priority, health checks, and recent diagnostic events.
 - Source traffic restricted to public HTTPS destinations, with DNS checks at connection time and redirect validation. No shell scripts or arbitrary JavaScript are executed from source definitions.

@@ -31,3 +31,5 @@ User endpoints require an actual Jellyfin user session, access to the configured
 Expected error JSON is `{error: "…"}` with 400 for invalid definitions/input, 403 for denied user access, 404 for missing downloads, 408 for interrupted requests, 502 for source HTTP failures, or 500 with a generic message and details in Jellyfin logs. Standard ASP.NET validation failures may use problem-details JSON. Static assets contain no credentials.
 
 Completed archives are served as individual bounded images, never arbitrary filesystem paths. Progress writes validate series/chapter identity and page bounds and use server timestamps. A source or chapter URL never becomes a local storage filename; SHA-256 IDs determine archive paths.
+
+`PUT /JellyManga/admin/sources/{id}/downloads` (administrator only) accepts `{ "maxConcurrentDownloads": 4 }` (1–8). This changes the website limit without resetting its verification. Global `downloadConcurrency` remains in admin settings. Both limits apply; changes affect new chapter starts without interrupting active work.

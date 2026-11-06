@@ -31,6 +31,7 @@ public sealed record SourceDefinition
     public bool Enabled { get; init; }
     public bool Removed { get; init; }
     public int Priority { get; init; } = 100;
+    public int MaxConcurrentDownloads { get; init; } = 1;
     public int DelayMilliseconds { get; init; } = 1500;
     public string Status { get; init; } = "Untested";
     public string SearchPath { get; init; } = "/?s={query}&post_type=wp-manga";
@@ -65,3 +66,5 @@ public static class Identity
     public static string For(params string[] parts) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('\n', parts))));
     public static void ValidId(string id) { if (id.Length != 64 || id.Any(c => !Uri.IsHexDigit(c))) throw new ArgumentException("Invalid identifier."); }
 }
+
+public sealed record SourceDownloadSettings(int MaxConcurrentDownloads);

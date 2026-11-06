@@ -164,10 +164,10 @@ public sealed class QueueService(Store store, SourceRegistry sources, ChapterDow
                 var config = Plugin.Instance.Configuration;
                 if (!config.Paused && !string.IsNullOrWhiteSpace(config.StoragePath))
                 {
-                    var enabled = sources.All().Where(s => s.Enabled && !s.Removed).Select(s => s.Id).ToHashSet();
+                    var limits = sources.All().Where(s => s.Enabled && !s.Removed).ToDictionary(s => s.Id, s => Math.Clamp(s.MaxConcurrentDownloads, 1, 8));
                     while (_active.Count < config.DownloadConcurrency)
                     {
-                        var busy = _active.Values.Select(v => v.Source).ToHashSet(); var job = store.Claim(busy, enabled); if (job == null) break;
+                        var counts = _active.Values.GroupBy(v => v.Source).ToDictionary(g => g.Key, g => g.Count()); var job = store.Claim(counts, limits, config.DownloadConcurrency); if (job == null) break;
                         var cancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
                         var task = Run(job, cancel.Token); _active[job.Chapter.Id] = (job.SourceId, cancel, task);
                     }
