@@ -9,6 +9,7 @@ public interface ISourceHttp
     Task<string> Text(Uri uri, SourceDefinition source, CancellationToken ct);
     Task<byte[]> Image(Uri uri, SourceDefinition source, string referer, CancellationToken ct);
     Task<byte[]> Data(Uri uri, SourceDefinition source, CancellationToken ct) => throw new NotSupportedException("Binary API not supported by this transport.");
+    Task<byte[]> Data(Uri uri, SourceDefinition source, IReadOnlyDictionary<string, string> headers, CancellationToken ct) => throw new NotSupportedException("Session API requests are not supported by this transport.");
     Task<string> FormText(Uri uri, SourceDefinition source, CancellationToken ct) => throw new NotSupportedException("Form API not supported by this transport.");
 }
 
@@ -64,12 +65,14 @@ public sealed class SafeHttp : ISourceHttp, IDisposable
         => System.Text.Encoding.UTF8.GetString(await Read(uri, source, "", 8 * 1024 * 1024, false, ct));
     public Task<byte[]> Image(Uri uri, SourceDefinition source, string referer, CancellationToken ct) => Read(uri, source, referer, 32 * 1024 * 1024, true, ct);
     public Task<byte[]> Data(Uri uri, SourceDefinition source, CancellationToken ct) => Read(uri, source, "", 8 * 1024 * 1024, false, ct);
+    public Task<byte[]> Data(Uri uri, SourceDefinition source, IReadOnlyDictionary<string, string> headers, CancellationToken ct) => Read(uri, source, "", 8 * 1024 * 1024, false, ct, extraHeaders: headers);
     public async Task<string> FormText(Uri uri, SourceDefinition source, CancellationToken ct) => System.Text.Encoding.UTF8.GetString(await Read(uri, source, "", 8 * 1024 * 1024, false, ct, true));
-    private async Task<byte[]> Read(Uri uri, SourceDefinition source, string referer, int limit, bool image, CancellationToken ct, bool form = false)
+    private async Task<byte[]> Read(Uri uri, SourceDefinition source, string referer, int limit, bool image, CancellationToken ct, bool form = false, IReadOnlyDictionary<string, string>? extraHeaders = null)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(TimeSpan.FromSeconds(60));
         ct = deadline.Token;
+        var originalHost = uri.IdnHost;
         var mutex = _locks.GetOrAdd(source.Id, _ => new(1)); await mutex.WaitAsync(ct);
         try
         {
@@ -82,6 +85,12 @@ public sealed class SafeHttp : ISourceHttp, IDisposable
                     if (wait > TimeSpan.Zero) await Task.Delay(wait, ct);
                 }
                 using var request = new HttpRequestMessage(form ? HttpMethod.Post : HttpMethod.Get, uri);
+                if (extraHeaders != null && string.Equals(uri.IdnHost, originalHost, StringComparison.OrdinalIgnoreCase))
+                    foreach (var header in extraHeaders)
+                    {
+                        if (!header.Key.Equals("SESSION-TOKEN", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Unsupported source session header.");
+                        request.Headers.Add(header.Key, header.Value);
+                    }
                 if (form) request.Content = new FormUrlEncodedContent([]);
                 if (!string.IsNullOrEmpty(referer)) { var r = new Uri(referer); ValidateUri(r, source); request.Headers.Referrer = r; }
                 _last[source.Id] = DateTimeOffset.UtcNow;

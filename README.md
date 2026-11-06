@@ -16,7 +16,7 @@ Add this URL under **Dashboard → Plugins → Repositories**, then install Jell
 
 1. Use Jellyfin **10.11.x with .NET 9**. The actual server integration was tested on **10.11.11**; earlier 10.11 builds are compile targets, not individually certified. Jellyfin 12 is not a supported target for this release.
 2. Install the [File Transformation plugin](https://github.com/IAmParadox27/jellyfin-plugin-file-transformation) using its repository and the version matching your Jellyfin server.
-3. Build `python scripts/package.py`, or use the generated `artifacts/releases/JellyTome_0.1.0.0.zip`. Stop Jellyfin, extract the archive to a new `JellyTome` directory inside Jellyfin's plugins directory, and restart. Do not install test/probe binaries.
+3. Build `python scripts/package.py`, or use the generated `artifacts/releases/JellyTome_VERSION.zip`. Stop Jellyfin, extract the archive to a new `JellyTome` directory inside Jellyfin's plugins directory, and restart. Do not install test/probe binaries.
 4. Open **Dashboard → Plugins → JellyTome**. Choose an existing Books library, click **Choose folder** to browse the server and select a writable manga storage directory, and set a storage budget. The plugin uses the chosen library's access permissions. Prefer a storage directory inside that library.
 5. Open Sources, enable and test desired adapters, and then open the **JellyTome icon in the top header**. Requesting a manga immediately downloads available English chapters and monitors future releases.
 

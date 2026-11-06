@@ -16,5 +16,6 @@
     <EmbeddedResource Include="Web/**/*" />
     <EmbeddedResource Include="../../thumb.png" LogicalName="Jellyfin.Plugin.JellyManga.Web.icon.png" />
     <EmbeddedResource Include="Sources/catalog.json" />
+    <EmbeddedResource Include="Sources/legacy-catalog-v0.1.0.3.json" />
   </ItemGroup>
 </Project>

@@ -34,11 +34,12 @@ public sealed class MangaDexSource(SourceDefinition definition, ISourceHttp http
         var output = new List<Chapter>();
         for (int offset = 0; offset < 10000; offset += 500)
         {
-            using var json = await Get($"/manga/{ExternalId(series.Url, "title")}/feed?translatedLanguage[]=en&limit=500&offset={offset}&order[chapter]=asc&includeExternalUrl=0", ct);
+            using var json = await Get($"/manga/{ExternalId(series.Url, "title")}/feed?translatedLanguage[]=en&limit=500&offset={offset}&order[chapter]=asc&includeExternalUrl=0&includeEmptyPages=0", ct);
             foreach (var item in json.RootElement.GetProperty("data").EnumerateArray())
             {
                 var a = item.GetProperty("attributes");
                 if (a.TryGetProperty("externalUrl", out var external) && external.ValueKind == JsonValueKind.String) continue;
+                if (a.TryGetProperty("pages", out var pages) && pages.GetInt32() == 0) continue;
                 var id = item.GetProperty("id").GetString()!; var number = a.GetProperty("chapter").GetString() ?? "0";
                 decimal.TryParse(number, NumberStyles.Number, CultureInfo.InvariantCulture, out var n);
                 output.Add(new(Identity.For(series.Id, id), series.Id, "https://mangadex.org/chapter/" + id, "Chapter " + number + " " + (a.GetProperty("title").GetString() ?? ""), n));

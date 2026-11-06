@@ -86,6 +86,40 @@ public sealed class CoreTests : IDisposable
         var adapter = new RuleSource(definition, new JsonFixtureHttp()); var series = Assert.Single(await adapter.Search("JSON", default)); Assert.Equal("JSON manga", series.Title); var chapters = await adapter.Chapters(series, default); Assert.Equal(2.5m, Assert.Single(chapters).Number); Assert.Single(await adapter.Pages(chapters[0], default));
     }
     [Fact]
+    public void BuiltInRuleUpgradePreservesAdminChoicesAndCustomEdits()
+    {
+        var store = Store(); var registry = new SourceRegistry(store, new FixtureHttp());
+        var legacy = System.Text.Json.JsonSerializer.Deserialize<List<SourceDefinition>>(Plugin.ReadResource("Sources.legacy-catalog-v0.1.0.3.json"), Jellyfin.Plugin.JellyManga.Store.Json)!.Single(s => s.Id == "mangapill");
+        store.Put("source", legacy.Id, legacy with { Enabled = true, Removed = true, Priority = 7 });
+        var upgraded = registry.Get(legacy.Id, false);
+        Assert.Equal("a.mb-2", upgraded.SearchLink); Assert.True(upgraded.Enabled); Assert.True(upgraded.Removed); Assert.Equal(7, upgraded.Priority);
+        store.Put("source", legacy.Id, legacy with { SearchLink = ".my-custom-link" });
+        Assert.Equal(".my-custom-link", registry.Get(legacy.Id, false).SearchLink);
+    }
+    [Fact]
+    public async Task OptionalForeignCoverDoesNotBreakSearchAndDomPagesFallbackWorks()
+    {
+        var adapter = new RuleSource(Source() with { ScriptImagePattern = "\"images\"\\s*:\\s*(?<images>\\[.*?\\])" }, new CoverFixtureHttp());
+        var result = Assert.Single(await adapter.Search("Fixture", default)); Assert.Equal("", result.CoverUrl);
+        Assert.Equal(2, (await adapter.Pages(Chapter(), default)).Count);
+    }
+    [Fact]
+    public async Task EncodedInlineScriptExtractsLiteralImagesWithoutExecution()
+    {
+        var adapter = new RuleSource(Source() with { ScriptImagePattern = "\"images\"\\s*:\\s*(?<images>\\[.*?\\])" }, new EncodedFixtureHttp());
+        var pages = await adapter.Pages(Chapter(), default);
+        Assert.Equal(new[] { "https://example.org/one.png", "https://example.org/two.png" }, pages.Select(p => p.Url));
+    }
+    [Fact]
+    public async Task FlameUsesPublicPageDataAndPreservesFractionalOrder()
+    {
+        var adapter = new FlameSource(Source() with { Id = "flame" }, new FlameFixtureHttp());
+        var series = Assert.Single(await adapter.Search("Fixture", default));
+        var chapters = await adapter.Chapters(series, default);
+        Assert.Equal(new[] { 1m, 1.5m }, chapters.Select(c => c.Number));
+        Assert.Single(await adapter.Pages(chapters[0], default));
+    }
+    [Fact]
     public void InjectionIsIdempotentAndUsesRelativeBasePath()
     {
         var html = WebTransformation.IndexHtml(new() { Contents = "<html><head></head><body></body></html>" }); Assert.Contains("../JellyManga/assets/app.js", html); Assert.Equal(html, WebTransformation.IndexHtml(new() { Contents = html }));
@@ -102,5 +136,34 @@ internal sealed class FixtureHttp : ISourceHttp
 internal sealed class JsonFixtureHttp : ISourceHttp
 {
     public Task<string> Text(Uri uri, SourceDefinition source, CancellationToken ct) => Task.FromResult("""{"data":{"items":[{"name":"JSON manga","link":"/series"}],"chapters":[{"name":"Chapter 2.5","link":"/chapter/1"}],"pages":["/image.png"]}}""");
+    public Task<byte[]> Image(Uri uri, SourceDefinition source, string referer, CancellationToken ct) => Task.FromResult(FixtureHttp.Png);
+}
+
+internal sealed class CoverFixtureHttp : ISourceHttp
+{
+    private readonly FixtureHttp inner = new();
+    public Task<string> Text(Uri uri, SourceDefinition source, CancellationToken ct) => uri.AbsolutePath.StartsWith("/search") ? Task.FromResult("<div class=result><a href=/series>Fixture manga</a><img src=\"https://foreign.example/cover.jpg\"></div>") : inner.Text(uri, source, ct);
+    public Task<byte[]> Image(Uri uri, SourceDefinition source, string referer, CancellationToken ct) => inner.Image(uri, source, referer, ct);
+}
+
+
+internal sealed class EncodedFixtureHttp : ISourceHttp
+{
+    public Task<string> Text(Uri uri, SourceDefinition source, CancellationToken ct)
+    {
+        var data = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("reader.run({\"images\":[\"/one.png\",\"/two.png\"]});"));
+        return Task.FromResult("<script src=\"data:text/javascript;base64," + data + "\"></script>");
+    }
+    public Task<byte[]> Image(Uri uri, SourceDefinition source, string referer, CancellationToken ct) => Task.FromResult(FixtureHttp.Png);
+}
+
+internal sealed class FlameFixtureHttp : ISourceHttp
+{
+    public Task<string> Text(Uri uri, SourceDefinition source, CancellationToken ct)
+    {
+        if (uri.AbsolutePath == "/browse") return Task.FromResult("<script id=__NEXT_DATA__>{\"props\":{\"pageProps\":{\"series\":[{\"series_id\":2,\"title\":\"Fixture\"},{\"novel_id\":3,\"title\":\"Fixture novel\"}]}}}</script>");
+        if (uri.AbsolutePath == "/series/2") return Task.FromResult("<script id=__NEXT_DATA__>{\"props\":{\"pageProps\":{\"chapters\":[{\"chapter\":\"1.5\",\"token\":\"b\"},{\"chapter\":\"1\",\"token\":\"a\"},{\"notice\":1}]}}}</script>");
+        return Task.FromResult("<img src=\"https://example.org/logo.png\"><img src=\"https://example.org/uploads/images/series/2/a/01.png\">");
+    }
     public Task<byte[]> Image(Uri uri, SourceDefinition source, string referer, CancellationToken ct) => Task.FromResult(FixtureHttp.Png);
 }

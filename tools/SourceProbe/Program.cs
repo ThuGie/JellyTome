@@ -11,12 +11,14 @@ var config = new Configuration { StoragePath = Path.Combine(root, "downloads"), 
 var storage = new LibraryStorage(() => config); var downloader = new ChapterDownloader(registry, http, storage); var tester = new SourceTester(store, registry, downloader, storage);
 var ids = args.FirstOrDefault(a => a.StartsWith("--ids="))?[6..].Split(','); var query = args.FirstOrDefault(a => a.StartsWith("--query="))?[8..] ?? "One Piece";
 var checks = new List<SourceCheck>(); using var semaphore = new SemaphoreSlim(5);
+var queriesFile = args.FirstOrDefault(a => a.StartsWith("--queries="))?[10..];
+var queries = queriesFile == null ? new Dictionary<string, string>() : JsonSerializer.Deserialize<Dictionary<string, string>>(await File.ReadAllTextAsync(queriesFile))!;
 var definitions = JsonSerializer.Deserialize<List<SourceDefinition>>(Plugin.ReadResource("Sources.catalog.json"), Store.Json)!;
 await Task.WhenAll(definitions.Where(s => ids == null || ids.Contains(s.Id)).Select(async definition => {
     await semaphore.WaitAsync();
     try
     {
-        var sourceQuery = args.Contains("--representative") ? store.Get<SourceCheck>("check", definition.Id)?.Title ?? query : query;
+        var sourceQuery = queries.TryGetValue(definition.Id, out var configuredQuery) ? configuredQuery : args.Contains("--representative") ? store.Get<SourceCheck>("check", definition.Id)?.Title ?? query : query;
         registry.Save(definition with { Enabled = true, Removed = false });
         var minutes = double.TryParse(args.FirstOrDefault(a => a.StartsWith("--minutes="))?[10..], out var requestedMinutes) ? Math.Clamp(requestedMinutes, 1, 30) : 3;
         using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(minutes));

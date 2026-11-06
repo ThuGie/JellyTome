@@ -59,7 +59,7 @@ public sealed record SourceDefinition
     public string JsonPagesPath { get; init; } = "pages";
 }
 
-public sealed record SourceCheck(string SourceId, DateTimeOffset CheckedAt, string Query, string? Title, bool Search, bool Details, bool Chapters, bool Pages, bool Download, string? Error);
+public sealed record SourceCheck(string SourceId, DateTimeOffset CheckedAt, string Query, string? Title, bool Search, bool Details, bool Chapters, bool Pages, bool Download, string? Error, string? SampleChapterUrl = null, int PageCount = 0);
 public static class Identity
 {
     public static string For(params string[] parts) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('\n', parts))));

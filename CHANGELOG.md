@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0.4
+
+- Expand browser-inspected source adapters and publish complete chapter validation results for 30 distinct websites. Untested and failed candidates remain disabled.
+- Add Flame Comics public Next.js data extraction; correct MangaPill, MangaFreak, MangaSushi, and further HTML adapters from current site responses.
+- Read ordinary base64 inline script data without executing website code; support DOM fallback and complete list-style chapters.
+- Refresh unchanged legacy built-in source rules after upgrades while preserving administrator choices and custom edits.
+- Send MANGA Plus its public anonymous session header, fixing catalog rejection. Protected chapter images remain unsupported.
+- Skip empty MangaDex feed entries and record sample chapter URLs and image counts in source diagnostics.
+
 ## 0.1.0.3
 
 - Keep only the JellyTome icon in the top header; remove the Home text button and extra drawer shortcut.

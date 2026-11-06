@@ -2,15 +2,18 @@ using System.Text;
 
 namespace Jellyfin.Plugin.JellyManga.Sources;
 
-// Public web API wire fields. No client session emulation, image decryption, or subscription bypass.
-public sealed class MangaPlusSource(SourceDefinition definition, ISourceHttp http) : IMangaSource
+// Public web API with the same anonymous session header used by the website.
+public sealed class MangaPlusSource(SourceDefinition definition, ISourceHttp http, string sessionId) : IMangaSource
 {
     public SourceDefinition Definition => definition;
+    private readonly IReadOnlyDictionary<string, string> _headers = new Dictionary<string, string> { ["SESSION-TOKEN"] = sessionId };
     private async Task<WireMessage> Get(string path, CancellationToken ct)
     {
-        var response = new WireMessage(await http.Data(new Uri("https://jumpg-webapi.tokyo-cdn.com/api/" + path), definition, ct));
+        var response = new WireMessage(await http.Data(new Uri("https://jumpg-webapi.tokyo-cdn.com/api/" + path), definition, _headers, ct));
         if (response.Children(1).FirstOrDefault() is { } success) return success;
         var error = response.Children(2).FirstOrDefault()?.Children(2).FirstOrDefault();
+        if (error?.Text(1).Contains("banned", StringComparison.OrdinalIgnoreCase) == true)
+            throw new HttpRequestException("MANGA Plus rejected the plugin's anonymous API session (provider response: " + error.Text(1) + "). This is not a check of your personal MANGA Plus account.");
         throw new HttpRequestException(error == null ? "MANGA Plus API returned no result; login or regional availability may be required." : error.Text(1) + ": " + error.Text(2));
     }
     private Series Series(WireMessage title, string description = "")

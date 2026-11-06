@@ -48,6 +48,14 @@ public sealed class RuleSource(SourceDefinition definition, ISourceHttp http) : 
     public SourceDefinition Definition => definition;
     private readonly HtmlParser _parser = new();
     private Uri Resolve(string value, string? parent = null) => SafeHttp.Resolve(value, parent ?? definition.BaseUrl, definition);
+    private Uri ResolveImage(string value, string parent)
+    {
+        // Some HTTPS readers retain legacy http image URLs. Try HTTPS only, never
+        // send plaintext traffic or relax the source host/address restrictions.
+        if (Uri.TryCreate(value, UriKind.Absolute, out var image) && image.Scheme == "http" && image.IsDefaultPort && string.IsNullOrEmpty(image.UserInfo))
+            value = new UriBuilder(image) { Scheme = "https", Port = -1 }.Uri.ToString();
+        return Resolve(value, parent);
+    }
     private Series MakeSeries(string url, string title, string description = "", string cover = "") => new(Identity.For(definition.Id, url), definition.Id, url, title, description, cover);
     private static IElement? Select(IElement node, string selector) => string.IsNullOrEmpty(selector) ? node : node.QuerySelector(selector);
     private string Url(IElement? node, string parent) => node?.GetAttribute("href") is string href ? Resolve(href, parent).ToString() : "";
@@ -72,7 +80,11 @@ public sealed class RuleSource(SourceDefinition definition, ISourceHttp http) : 
                 if (href.Length == 0) continue;
                 var image = item.QuerySelector(definition.SearchCover);
                 var cover = image == null ? "" : Extraction.Image(image, definition.ImageAttribute);
-                output.Add(MakeSeries(href, Extraction.Text(link), cover: cover.Length == 0 ? "" : Resolve(cover, url.ToString()).ToString()));
+                var coverUrl = "";
+                if (cover.Length > 0)
+                    try { coverUrl = Resolve(cover, url.ToString()).ToString(); }
+                    catch (Exception ex) when (ex is ArgumentException or UriFormatException) { /* Optional cover hosts must not break title search. */ }
+                output.Add(MakeSeries(href, Extraction.Text(link), cover: coverUrl));
             }
             if (string.IsNullOrEmpty(definition.NextSelector) || doc.QuerySelector(definition.NextSelector)?.GetAttribute("href") is not string next) break;
             url = Resolve(next, url.ToString());
@@ -117,6 +129,22 @@ public sealed class RuleSource(SourceDefinition definition, ISourceHttp http) : 
         if (output.Count == 0) throw new InvalidDataException("No English chapters found. The site may require a specialized adapter, login, or updated rules.");
         return output.DistinctBy(c => c.Id).OrderBy(c => c.Number).ThenBy(c => c.Title, StringComparer.Ordinal).ToList();
     }
+    private static string InlineScriptData(string html)
+    {
+        // WordPress performance plugins embed ordinary inline scripts as base64 data URLs.
+        // Decode text only; never execute the script or fetch script destinations.
+        var document = new HtmlParser().ParseDocument(html); var text = new System.Text.StringBuilder(html);
+        foreach (var script in document.QuerySelectorAll("script[src]"))
+        {
+            const string prefix = "data:text/javascript;base64,";
+            var src = script.GetAttribute("src")!;
+            if (!src.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) || src.Length > 4_000_000) continue;
+            try { text.AppendLine(System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(src[prefix.Length..]))); }
+            catch (FormatException) { /* Malformed optional script data is not an image list. */ }
+            if (text.Length > 16_000_000) break;
+        }
+        return text.ToString();
+    }
     public async Task<IReadOnlyList<PageImage>> Pages(Chapter chapter, CancellationToken ct)
     {
         var parts = new Uri(chapter.Url).AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
@@ -125,14 +153,12 @@ public sealed class RuleSource(SourceDefinition definition, ISourceHttp http) : 
         {
             using var json = JsonDocument.Parse(text); var items = Extraction.Path(json.RootElement, definition.JsonPagesPath);
             if (items.ValueKind != JsonValueKind.Array) throw new InvalidDataException("Page JSON path must resolve to an array.");
-            foreach (var item in items.EnumerateArray()) output.Add(new(Resolve(item.ValueKind == JsonValueKind.String ? item.GetString()! : Extraction.Value(item, definition.JsonUrlPath), chapter.Url).ToString(), chapter.Url));
+            foreach (var item in items.EnumerateArray()) output.Add(new(ResolveImage(item.ValueKind == JsonValueKind.String ? item.GetString()! : Extraction.Value(item, definition.JsonUrlPath), chapter.Url).ToString(), chapter.Url));
         }
-        else if (definition.ScriptImagePattern.Length > 0)
+        else if (definition.ScriptImagePattern.Length > 0 && Regex.Match(InlineScriptData(text), definition.ScriptImagePattern, RegexOptions.Singleline, TimeSpan.FromSeconds(1)) is { Success: true } match)
         {
-            var match = Regex.Match(text, definition.ScriptImagePattern, RegexOptions.Singleline, TimeSpan.FromSeconds(1));
-            if (!match.Success) throw new InvalidDataException("Embedded image array was not found.");
             var array = Newtonsoft.Json.Linq.JArray.Parse(match.Groups["images"].Value);
-            foreach (var item in array) output.Add(new(Resolve(item.ToString(), chapter.Url).ToString(), chapter.Url));
+            foreach (var item in array) output.Add(new(ResolveImage(item.ToString(), chapter.Url).ToString(), chapter.Url));
         }
         else
         {
@@ -140,7 +166,7 @@ public sealed class RuleSource(SourceDefinition definition, ISourceHttp http) : 
             for (int page = 0; page < definition.MaxPagination && visited.Add(url.ToString()); page++)
             {
                 var doc = await _parser.ParseDocumentAsync(text, ct);
-                foreach (var node in doc.QuerySelectorAll(definition.PagesSelector)) { var image = Extraction.Image(node, definition.ImageAttribute); if (image.Length > 0) output.Add(new(Resolve(image, url.ToString()).ToString(), chapter.Url)); }
+                foreach (var node in doc.QuerySelectorAll(definition.PagesSelector)) { var image = Extraction.Image(node, definition.ImageAttribute); if (image.Length > 0) output.Add(new(ResolveImage(image, url.ToString()).ToString(), chapter.Url)); }
                 if (string.IsNullOrEmpty(definition.NextSelector) || doc.QuerySelector(definition.NextSelector)?.GetAttribute("href") is not string next) break;
                 url = Resolve(next, url.ToString()); text = await http.Text(url, definition, ct);
             }

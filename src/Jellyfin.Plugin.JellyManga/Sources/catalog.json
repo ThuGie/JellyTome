@@ -9,7 +9,7 @@
       "api.mangadex.org",
       "uploads.mangadex.org"
     ],
-    "status": "Experimental / failed live test: Response status code does not indicate success: 404 (Not Found)."
+    "status": "Verified sample 2026-11-06 \u00b7 Yotsuba to!"
   },
   {
     "id": "webtoon",
@@ -37,7 +37,7 @@
     "name": "MANGA Plus",
     "baseUrl": "https://mangaplus.shueisha.co.jp",
     "kind": "mangaplus",
-    "status": "Experimental / failed live test: Account Banned: You have been banned from MANGA Plus by SHUEISHA due to a possible violation of our Terms of Service. https://mangaplus.shueisha.co.jp/terms_web/eng/ If you have a ",
+    "status": "Experimental / failed live test: MANGA Plus returned encrypted images. This adapter does not bypass image protection.",
     "allowedHosts": [
       "jumpg-webapi.tokyo-cdn.com",
       "mangaplus-api-production.freetls.fastly.net"
@@ -171,10 +171,13 @@
   {
     "id": "flame",
     "name": "Flame Comics",
-    "baseUrl": "https://flamecomics.com",
-    "kind": "unavailable",
-    "status": "Candidate: specialized adapter not implemented",
-    "enabled": false
+    "baseUrl": "https://flamecomics.xyz",
+    "kind": "flame",
+    "status": "Verified sample 2026-11-06 \u00b7 Omniscient Reader's Viewpoint",
+    "enabled": false,
+    "allowedHosts": [
+      "cdn.flamecomics.xyz"
+    ]
   },
   {
     "id": "reaper",
@@ -248,7 +251,7 @@
     "name": "ManhuaPlus",
     "baseUrl": "https://manhuaplus.com",
     "enabled": false,
-    "status": "Experimental / failed live test: Host not in source allowlist: manhuaus5.wordpress.com",
+    "status": "Experimental / failed live test: A task was canceled.",
     "allowedHosts": [
       "manhuaus5.files.wordpress.com",
       "manhuaus6.files.wordpress.com",
@@ -287,9 +290,21 @@
   {
     "id": "mangafreak",
     "name": "MangaFreak",
-    "baseUrl": "https://mangafreak.me",
+    "baseUrl": "https://ww3.mangafreak.me",
     "enabled": false,
-    "status": "Experimental / failed live test: Host not in source allowlist: ww3.mangafreak.me"
+    "status": "Verified sample 2026-11-06 \u00b7 One Piece",
+    "kind": "html",
+    "searchPath": "/Find/{query}",
+    "searchItems": ".manga_search_item",
+    "searchLink": "h3 a",
+    "titleSelector": ".manga_series_data h1",
+    "descriptionSelector": ".manga_series_description",
+    "chapterItems": ".manga_series_list a[href*=\"Read\"], .series_sub_chapter_list a",
+    "pagesSelector": "img#gohere",
+    "allowedHosts": [
+      "images.mangafreak.me",
+      "cdn.mangafreak.me"
+    ]
   },
   {
     "id": "topmanhua",
@@ -370,22 +385,22 @@
     "enabled": false,
     "chaptersPath": "{series}/ajax/chapters/",
     "chaptersMethod": "POST",
-    "status": "Experimental / failed live test: Search returned no titles."
+    "status": "Verified sample 2026-11-06 \u00b7 Shijou Saikyou no Mahou Kenshi, F Rank Boukensha ni Tensei Suru"
   },
   {
     "id": "mangapill",
     "name": "MangaPill",
     "baseUrl": "https://mangapill.com",
     "enabled": false,
-    "searchPath": "/search?q={query}&type=&status=",
+    "searchPath": "/search?q={query}",
     "searchItems": "div.grid > div",
-    "searchLink": "a[href*=\"/manga/\"]",
+    "searchLink": "a.mb-2",
     "titleSelector": "h1",
     "descriptionSelector": ".text-sm",
     "chapterItems": "#chapters a",
     "pagesSelector": "img.js-page",
     "imageAttribute": "data-src",
-    "status": "Experimental / failed live test: Search returned no titles.",
+    "status": "Verified sample 2026-11-06 \u00b7 One Piece",
     "allowedHosts": [
       "cdn.readdetectiveconan.com"
     ]
@@ -451,7 +466,7 @@
     "enabled": false,
     "chaptersPath": "{series}/ajax/chapters/",
     "chaptersMethod": "POST",
-    "status": "Experimental / failed live test: Search returned no titles."
+    "status": "Verified sample 2026-11-06 \u00b7 Daily Lord of the Novice Village"
   },
   {
     "id": "manhuanext",
@@ -461,5 +476,444 @@
     "chaptersPath": "{series}/ajax/chapters/",
     "chaptersMethod": "POST",
     "status": "Experimental / failed live test: Search returned no titles."
+  },
+  {
+    "id": "akazascans",
+    "name": "Akaza Scans",
+    "baseUrl": "https://akazascans.org",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 Shadow Slave",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "#readerarea img",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])"
+  },
+  {
+    "id": "aquamanga",
+    "name": "Aqua Manga",
+    "baseUrl": "https://aquareader.org",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 Magic Emperor",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST",
+    "titleSelector": "h1"
+  },
+  {
+    "id": "arenascans",
+    "name": "Arena Scans",
+    "baseUrl": "https://arenascan.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 The Villainess Is A Marionette",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "#readerarea img",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])",
+    "allowedHosts": [
+      "cdn.arenascan.com"
+    ]
+  },
+  {
+    "id": "asterscans",
+    "name": "Aster Scans",
+    "baseUrl": "https://asterscans.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 My husband hid the child",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "#readerarea img",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])"
+  },
+  {
+    "id": "athreascans",
+    "name": "Athrea Scans",
+    "baseUrl": "https://athreascans.com",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "#readerarea img",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])"
+  },
+  {
+    "id": "boratscans",
+    "name": "Borat Scans",
+    "baseUrl": "https://boratscans.com",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "cucumbermanga",
+    "name": "Cucumber Manga",
+    "baseUrl": "https://cucumbermanga.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 Jinx [Cucumbermanga]",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "decadencescans",
+    "name": "Decadence Scans",
+    "baseUrl": "https://reader.decadencescans.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 Hapira Hajimaru",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST",
+    "pagesPath": "{chapter}?style=list"
+  },
+  {
+    "id": "erosscans",
+    "name": "Scythe Scans",
+    "baseUrl": "https://scythescans.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 The Avenging Assassin Doll",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "img.ts-main-image",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])"
+  },
+  {
+    "id": "evascans",
+    "name": "Eva Scans",
+    "baseUrl": "https://evascans.net",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 Being A Wicked Woman Is Comfortable And Pleasant",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "#readerarea img",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])"
+  },
+  {
+    "id": "gakamangas",
+    "name": "GakaMangas",
+    "baseUrl": "https://gakamangas.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 Midoriya goes down the wrong path!",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "galaxydegenscans",
+    "name": "GalaxyDegenScans",
+    "baseUrl": "https://gdscans.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 If the Villainess and the Villain Were to Meet and Fall in Love",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "hadesscans",
+    "name": "Hades Scans",
+    "baseUrl": "https://hadesscans.com",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "#readerarea img",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])"
+  },
+  {
+    "id": "jinmangas",
+    "name": "Jinmangas",
+    "baseUrl": "https://mangafree.info",
+    "enabled": false,
+    "status": "Experimental / failed live test: Sources require HTTPS on the default port, without credentials.",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "kensscan",
+    "name": "Kensscan",
+    "baseUrl": "https://kensscan.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 Maou No Musume Wa Ikigitanai",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST",
+    "titleSelector": "h1",
+    "allowedHosts": [
+      "pub-e07f2012160844128b7abfc18e1dbf1e.r2.dev",
+      "cdn.discordapp.com"
+    ]
+  },
+  {
+    "id": "kissmangain",
+    "name": "Kissmanga.in",
+    "baseUrl": "https://kissmanga.in",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "ksgroupscans",
+    "name": "KSGroupScans",
+    "baseUrl": "https://ksgroupscans.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 Hell Mode: Yarikomi Suki no Gamer wa Hai Settei no Isekai de Musou Suru",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "kunmangaonline",
+    "name": "Kun Manga Online",
+    "baseUrl": "https://www.kunmanga.online",
+    "enabled": false,
+    "status": "Experimental / failed live test: Response status code does not indicate success: 404 (Not Found).",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "lagoonscans",
+    "name": "Lagoon Scans",
+    "baseUrl": "https://lagoonscans.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 Ode of the Brave",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "#readerarea img",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])"
+  },
+  {
+    "id": "linkmanga",
+    "name": "LinkManga",
+    "baseUrl": "https://linkmanga.com",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "lovesjanescans",
+    "name": "Lovesjane Scans",
+    "baseUrl": "https://lovesjane.site",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 Miyeon",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "madarascans",
+    "name": "Madara Scans",
+    "baseUrl": "https://madarascans.net",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 My Disciples Are All Big Villains",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "#readerarea img",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])"
+  },
+  {
+    "id": "mangahe",
+    "name": "MangaHe",
+    "baseUrl": "https://mangahe.com",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "mangamaniacs",
+    "name": "MangaManiacs",
+    "baseUrl": "https://mangamaniacs.org",
+    "enabled": false,
+    "status": "Experimental / failed live test: Response status code does not indicate success: 522 (<none>).",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST",
+    "allowedHosts": [
+      "images.mangamaniacs.org"
+    ]
+  },
+  {
+    "id": "mangatrend",
+    "name": "Manga Trend",
+    "baseUrl": "https://mangatrend.org",
+    "enabled": false,
+    "status": "Experimental / failed live test: Invalid page count; source extraction failed.",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "#readerarea img",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])"
+  },
+  {
+    "id": "manhuazonghe",
+    "name": "Manhua Zonghe",
+    "baseUrl": "https://www.manhuazonghe.com",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "manhwacomics",
+    "name": "Manhwa Comics",
+    "baseUrl": "https://manhwacomics.com",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "manhwamanhua",
+    "name": "ManhwaManhua",
+    "baseUrl": "https://manhwamanhua.com",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "manhwatoon",
+    "name": "Manhwa Toon",
+    "baseUrl": "https://www.manhwatoon.me",
+    "enabled": false,
+    "status": "Experimental / failed live test: Search returned no titles.",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "octopusmanga",
+    "name": "OctopusManga",
+    "baseUrl": "https://octopusmanga.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 Blossoms of The White Night [Octopusmanga]",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST",
+    "pagesSelector": "img.wp-manga-chapter-img"
+  },
+  {
+    "id": "ragescans",
+    "name": "Rage Scans",
+    "baseUrl": "https://ragescans.com",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "#readerarea img",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])"
+  },
+  {
+    "id": "ravenscans",
+    "name": "Raven Scans",
+    "baseUrl": "https://ravenscans.org",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "searchPath": "/?s={query}",
+    "searchItems": ".listupd .bs",
+    "searchLink": ".tt a, a",
+    "titleSelector": "h1.entry-title",
+    "descriptionSelector": ".entry-content.entry-content-single, .desc",
+    "chapterItems": ".eplister a",
+    "pagesSelector": "#readerarea img",
+    "scriptImagePattern": "\"images\"\\s*:\\s*(?<images>\\[.*?\\])"
+  },
+  {
+    "id": "rosesquadscans",
+    "name": "Rose Squad Scans",
+    "baseUrl": "https://rosesquadscans.aishiteru.org",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
+  },
+  {
+    "id": "s2manga",
+    "name": "S2Manga",
+    "baseUrl": "https://s2read.com",
+    "enabled": false,
+    "status": "Verified sample 2026-11-06 \u00b7 For the Young Villain\u2019s Happy Ending",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST",
+    "allowedHosts": [
+      "cdn-1.s2read.com"
+    ]
+  },
+  {
+    "id": "setsuscans",
+    "name": "Setsu Scans",
+    "baseUrl": "https://setsuscans.com",
+    "enabled": false,
+    "status": "Candidate: browser and full download validation pending",
+    "delayMilliseconds": 1500,
+    "chaptersPath": "{series}/ajax/chapters/",
+    "chaptersMethod": "POST"
   }
 ]

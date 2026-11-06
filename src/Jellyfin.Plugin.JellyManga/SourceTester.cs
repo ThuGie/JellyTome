@@ -8,13 +8,14 @@ public sealed class SourceTester(Store store, SourceRegistry sources, ChapterDow
     {
         if (body.Query.Length is < 2 or > 200) throw new ArgumentException("A test query of 2–200 characters is required.");
         bool search = false, details = false, chapters = false, pages = false, download = false; string? title = null, error = null;
+        string? sampleChapter = null; int pageCount = 0;
         try
         {
             var adapter = sources.Adapter(id, false); var found = await adapter.Search(body.Query, ct); search = found.Count > 0;
             var url = body.SeriesUrl ?? found.FirstOrDefault(s => s.Title.Contains(body.Query, StringComparison.OrdinalIgnoreCase))?.Url ?? found.FirstOrDefault()?.Url ?? throw new InvalidDataException("Search returned no titles.");
             var series = await adapter.Details(url, ct); title = series.Title; details = title.Length > 0;
             var list = await adapter.Chapters(series, ct); chapters = list.Count > 0;
-            var chapter = list.FirstOrDefault() ?? throw new InvalidDataException("No chapters found."); var images = await adapter.Pages(chapter, ct); pages = images.Count > 0;
+            var chapter = list.FirstOrDefault(c => c.Number >= 1 && !c.Title.Contains("notice", StringComparison.OrdinalIgnoreCase)) ?? list.FirstOrDefault() ?? throw new InvalidDataException("No chapters found."); sampleChapter = chapter.Url; var images = await adapter.Pages(chapter, ct); pageCount = images.Count; pages = images.Count > 0;
             if (body.Download)
             {
                 // Tests use their own archive ID and never overwrite a library chapter.
@@ -31,7 +32,7 @@ public sealed class SourceTester(Store store, SourceRegistry sources, ChapterDow
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex) { error = ex.Message; }
-        var check = new SourceCheck(id, DateTimeOffset.UtcNow, body.Query, title, search, details, chapters, pages, download, error);
+        var check = new SourceCheck(id, DateTimeOffset.UtcNow, body.Query, title, search, details, chapters, pages, download, error, sampleChapter, pageCount);
         store.Put("check", id, check);
         store.Event("Source test", id + ": " + (error ?? (download ? "Complete chapter validated." : "Extraction checked; download not tested.")));
         var definition = sources.Get(id, false);
