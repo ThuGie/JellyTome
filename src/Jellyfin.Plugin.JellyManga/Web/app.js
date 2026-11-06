@@ -7,8 +7,9 @@
     const blobUrls = new Map();
     const element = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
     const button = (text, action, cls = '') => { const b = element('button', cls, text); b.type = 'button'; b.onclick = async () => { b.disabled = true; try { await action(); } catch (e) { message(e.message, true); } finally { b.disabled = false; } }; return b; };
+    const sessionHeaders = () => { const headers = {}; ApiClient.setRequestHeaders(headers); return headers; };
     const api = async (path, method = 'GET', body, signal) => {
-        const response = await fetch(ApiClient.getUrl('JellyManga/' + path), { method, headers: { 'X-Emby-Token': ApiClient.accessToken(), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) }, body: body === undefined ? undefined : JSON.stringify(body), signal });
+        const response = await fetch(ApiClient.getUrl('JellyManga/' + path), { method, credentials: 'same-origin', headers: { ...sessionHeaders(), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) }, body: body === undefined ? undefined : JSON.stringify(body), signal });
         if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error || data.Message || `Request failed (${response.status})`); }
         return response.status === 204 ? null : response.json();
     };
@@ -16,20 +17,20 @@
     function empty(text) { main.append(element('div', 'jm-empty', text)); }
     function heading(title, subtitle) { main.append(element('div', 'jm-kicker', 'YOUR NEXT CHAPTER'), element('h1', '', title)); if (subtitle) main.append(element('p', 'jm-lede', subtitle)); }
     function releaseImages() { pageObserver?.disconnect(); pageAbort?.abort(); pageAbort = new AbortController(); for (const value of blobUrls.values()) URL.revokeObjectURL(value); blobUrls.clear(); }
-    function close(push = true) { generation++; clearInterval(poll); reader = null; releaseImages(); root?.remove(); root = null; main = null; document.removeEventListener('keydown', keys); if (push && history.state?.jellyManga) history.back(); }
-    async function open(tab = 'library') {
+    function close(push = true) { const embedded = root?.dataset.embedded === '1'; generation++; clearInterval(poll); reader = null; releaseImages(); root?.remove(); root = null; main = null; document.removeEventListener('keydown', keys); if (push && !embedded && history.state?.jellyManga) history.back(); }
+    async function open(tab = 'library', options = {}) {
         if (typeof ApiClient === 'undefined' || !ApiClient.accessToken()) return;
-        if (root) { await navigate(tab); return; }
-        root = element('section'); root.id = 'jm-app'; root.setAttribute('aria-label', 'JellyTome');
+        if (root) { if ((options.host && root.parentNode === options.host) || (!options.host && root.dataset.embedded !== '1')) { await navigate(tab); return; } close(false); }
+        root = element('section'); root.id = 'jm-app'; root.setAttribute('aria-label', 'JellyTome'); if (options.host) { root.className = 'jm-embedded'; root.dataset.embedded = '1'; }
         const header = element('header', 'jm-header'); const brand = element('div', 'jm-brand', 'Jelly'); brand.append(element('span', '', 'Tome'));
         const nav = element('nav', 'jm-nav'); nav.setAttribute('aria-label', 'Manga navigation');
-        header.append(brand, nav, button('Back to Jellyfin', () => close(), 'jm-close')); main = element('main', 'jm-main'); root.append(header, main); document.body.append(root);
+        header.append(brand, nav, button('Back to Jellyfin', () => close(), 'jm-close')); main = element('main', 'jm-main'); root.append(header, main); (options.host || document.body).append(root); if (options.host) header.querySelector('.jm-close').hidden = true;
         try {
             session = await api('session');
             for (const [id, label] of [['discover', 'Discover'], ['library', 'My library'], ['continue', 'Continue reading'], ['downloads', 'Downloads'], ...(session.admin ? [['admin', 'Admin dashboard']] : [])]) {
                 const b = button(label, () => navigate(id)); b.dataset.tab = id; nav.append(b);
             }
-            history.pushState({ ...(history.state || {}), jellyManga: true }, '', location.href);
+            if (!options.host) history.pushState({ ...(history.state || {}), jellyManga: true }, '', location.href);
             document.addEventListener('keydown', keys); await navigate(tab);
         } catch (e) { message(e.message, true); }
     }
@@ -152,7 +153,7 @@
     }
     async function imageFor(chapter, page, signal) {
         const key = chapter + ':' + page; if (blobUrls.has(key)) return blobUrls.get(key);
-        const response = await fetch(ApiClient.getUrl(`JellyManga/chapters/${chapter}/pages/${page}`), { headers: { 'X-Emby-Token': ApiClient.accessToken() }, signal });
+        const response = await fetch(ApiClient.getUrl(`JellyManga/chapters/${chapter}/pages/${page}`), { credentials: 'same-origin', headers: sessionHeaders(), signal });
         if (!response.ok) throw new Error('Could not load page ' + (page + 1)); const url = URL.createObjectURL(await response.blob());
         if (signal.aborted) { URL.revokeObjectURL(url); throw new DOMException('Aborted', 'AbortError'); } blobUrls.set(key, url); return url;
     }
@@ -195,6 +196,11 @@
     let scheduled = false;
     function mountNavigation() {
         scheduled = false; if (typeof ApiClient === 'undefined' || !ApiClient.accessToken()) return;
+        for (const parent of document.querySelectorAll('.skinHeader .headerRight, .headerRight, .appHeader .headerActions')) {
+            if (parent.querySelector('[data-jellymanga-header]')) continue;
+            const entry = button('', () => open('library')); entry.className = 'paper-icon-button-light headerButton headerButtonRight emby-button jm-header-icon'; entry.dataset.jellymangaHeader = '1'; entry.title = 'JellyTome'; entry.setAttribute('aria-label', 'JellyTome');
+            const image = element('img'); image.src = ApiClient.getUrl('JellyManga/assets/icon.png'); image.alt = ''; image.setAttribute('aria-hidden', 'true'); image.onerror = () => { const glyph = element('span', 'material-icons notranslate', 'menu_book'); glyph.setAttribute('aria-hidden', 'true'); image.replaceWith(glyph); }; entry.append(image); parent.prepend(entry);
+        }
         for (const parent of document.querySelectorAll('.mainDrawer-scrollContainer .navMenuOptionContainer, .mainDrawer .navMenuOptionContainer')) {
             if (parent.querySelector('[data-jellymanga-nav]')) continue;
             const link = element('a', 'navMenuOption emby-button'); link.href = '#'; link.dataset.jellymangaNav = '1'; const icon = element('span', 'material-icons navMenuOptionIcon', 'menu_book'); icon.setAttribute('aria-hidden', 'true'); link.append(icon, element('span', 'navMenuOptionText', 'Manga')); link.onclick = e => { e.preventDefault(); open(); }; parent.append(link);
@@ -206,5 +212,5 @@
     window.addEventListener('hashchange', () => { if (root) close(false); });
     window.addEventListener('beforeunload', () => releaseImages());
     document.addEventListener('visibilitychange', () => { if (reader && document.hidden) saveProgress().catch(() => {}); });
-    window.JellyManga = { open, close }; mountNavigation();
+    window.JellyManga = { open, close, closeEmbedded: host => { if (root?.parentNode === host) close(false); } }; mountNavigation();
 })();

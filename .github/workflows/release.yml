@@ -47,7 +47,13 @@ jobs:
         run: python scripts/package.py --repository "$GITHUB_REPOSITORY" --version "$PLUGIN_VERSION"
       - name: Write release notes
         run: |
-          cat > artifacts/releases/notes.md <<'EOF'
+          python - <<'PY'
+          import json,os,pathlib
+          data=json.loads(pathlib.Path('artifacts/releases/manifest.json').read_text())
+          version=next(v for v in data[0]['versions'] if v['version']==os.environ['PLUGIN_VERSION'])
+          pathlib.Path('artifacts/releases/notes.md').write_text(version['changelog']+'\n\n')
+          PY
+          cat >> artifacts/releases/notes.md <<'EOF'
           JellyTome preview: manga discovery, immediate requests, automatic downloads and monitoring, an embedded reader, and an administrator dashboard for Jellyfin 10.11.x.
 
           Seven source samples are verified. The planned 30-source target is incomplete. Physical Android app testing remains outstanding; desktop/tablet/mobile browser and real Jellyfin integration tests passed. See the checked-in source and compatibility reports.

@@ -23,3 +23,7 @@ Browser fixture tests passed **32 assertions** across desktop/tablet/mobile. Liv
 Real-server tests exposed and fixed Jellyfin API casing differences and the 10.11.11 user enumeration API change. The installed package was upgraded and restarted between these tests. Test manga fixtures and reading progress persisted through the restart. Original application data and production Jellyfin services were not used.
 
 Source results are maintained separately in [source-status.md](source-status.md). Full download validation confirms the selected chapter's extracted images and archive structure; it does not certify every title, every account state, or future site changes. MANGA Plus returned an API rejection without any account credentials being supplied. No user account was logged into that site.
+
+## 0.1.0.2 regression verification
+
+Verified header icon access and direct embedded administrator settings on real Jellyfin 10.11.11 with `EnableLegacyAuthorization=false`, on desktop and mobile. All 42 live HTTP checks passed with modern MediaBrowser authorization. Browser fixtures now reject legacy token headers and passed 44 assertions across desktop/tablet/mobile, including duplicate page events and settings-page auto-opening. Backend tests remain 29 passing.

@@ -60,6 +60,7 @@ public sealed class MangaController(Store store, SourceRegistry sources, MangaSe
     }
     [HttpGet("assets/{name}"), AllowAnonymous]
     public ActionResult Asset(string name) => name switch {
+        "icon.png" => File(typeof(Plugin).Assembly.GetManifestResourceStream("Jellyfin.Plugin.JellyManga.Web.icon.png")!, "image/png"),
         "app.js" => Content(Plugin.ReadResource("Web.app.js"), "application/javascript"),
         "app.css" => Content(Plugin.ReadResource("Web.app.css"), "text/css"),
         _ => NotFound()

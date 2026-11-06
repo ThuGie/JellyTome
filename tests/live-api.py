@@ -4,7 +4,7 @@ import base64,datetime,hashlib,json,pathlib,secrets,sqlite3,urllib.error,urllib.
 root=pathlib.Path(__file__).resolve().parents[1];live=root/'artifacts/jellyfin-live';session=json.loads((live/'session.json').read_text());base=session['base'];admin=session['token'];checks=[]
 def call(path,method='GET',data=None,token=admin,expected=200):
     headers={'Content-Type':'application/json','X-Emby-Authorization':'MediaBrowser Client="JellyMangaTests", Device="Isolated", DeviceId="jellymanga-api", Version="1"'}
-    if token:headers['X-Emby-Token']=token
+    if token:headers['Authorization']='MediaBrowser Client="JellyTomeTests", Device="Isolated", DeviceId="jellymanga-api", Version="1", Token="'+token+'"'
     request=urllib.request.Request(base+path,method=method,headers=headers,data=None if data is None else json.dumps(data).encode())
     try:
         with urllib.request.urlopen(request,timeout=15) as response:status=response.status;raw=response.read();content_type=response.headers.get('Content-Type','')

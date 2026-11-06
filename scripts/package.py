@@ -22,7 +22,12 @@ with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:
 digest = hashlib.md5(archive.read_bytes()).hexdigest()
 (output/(archive.name+'.sha256')).write_text(hashlib.sha256(archive.read_bytes()).hexdigest()+'  '+archive.name+'\n')
 if args.repository:
-    version = dict(version=args.version, changelog='Preview release. Seven verified source samples; the planned 30-source target is incomplete. Check source and compatibility reports before installing.', targetAbi='10.11.3.0', sourceUrl=f'https://github.com/{args.repository}/releases/download/v{args.version}/{archive.name}', checksum=digest, timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(), dependencies=[])
+    changelog = 'Preview release. Seven verified source samples; the planned 30-source target is incomplete. Check source and compatibility reports before installing.'
+    history = root/'CHANGELOG.md'
+    if history.exists():
+        section = re.search(r'^## '+re.escape(args.version)+r'\s*\n(.*?)(?=^## |\Z)', history.read_text(encoding='utf-8'), re.M | re.S)
+        if section: changelog = section.group(1).strip()
+    version = dict(version=args.version, changelog=changelog, targetAbi='10.11.3.0', sourceUrl=f'https://github.com/{args.repository}/releases/download/v{args.version}/{archive.name}', checksum=digest, timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(), dependencies=[])
     versions = []
     existing = root/'manifest.json'
     if existing.exists():

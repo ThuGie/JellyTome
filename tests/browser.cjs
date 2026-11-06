@@ -14,9 +14,12 @@ let progress = [], requested = 0, savedSettings;
 const calls = [];
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost'); const route = url.pathname.replace('/base/JellyManga/', '');
-    if (url.pathname === '/base/web/index.html') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../JellyManga/assets/app.css"></head><body><div class="mainDrawer"><div class="navMenuOptionContainer"><a id="foreign-plugin">JellySpot</a></div></div><div id="indexPage"><div class="homeSectionsContainer"></div></div><script>window.ApiClient={getUrl:p=>'/base/'+p,accessToken:()=>'test-token'};</script><script src="../JellyManga/assets/app.js"></script></body></html>`); return; }
+    if (url.pathname === '/base/web/index.html') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../JellyManga/assets/app.css"></head><body><header class="skinHeader"><div class="headerRight"></div></header><div class="mainDrawer"><div class="navMenuOptionContainer"><a id="foreign-plugin">JellySpot</a></div></div><div id="indexPage"><div class="homeSectionsContainer"></div></div><script>window.ApiClient={getUrl:p=>'/base/'+p,accessToken:()=>'legacy-not-used',setRequestHeaders:h=>{h.Authorization='MediaBrowser Client="JellyTomeTests", DeviceId="fixture", Token="test-token"'}};</script><script src="../JellyManga/assets/app.js"></script></body></html>`); return; }
+    if (url.pathname === '/base/web/configurationpage') { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><header class="skinHeader"><div class="headerRight"></div></header><script>window.ApiClient={getUrl:p=>'/base/'+p,accessToken:()=>'legacy-not-used',setRequestHeaders:h=>{h.Authorization='MediaBrowser Client="JellyTomeTests", DeviceId="fixture", Token="test-token"'}};</script>${fs.readFileSync(path.join(web,'config.html'),'utf8')}</body></html>`); return; }
+    if (route === 'assets/icon.png') { res.setHeader('Content-Type','image/png'); res.end(fs.readFileSync(path.join(__dirname,'../thumb.png'))); return; }
     if (route.startsWith('assets/')) { res.setHeader('Content-Type', (route.endsWith('.css') ? 'text/css' : 'application/javascript') + '; charset=utf-8'); res.end(fs.readFileSync(path.join(web, route.slice(7)))); return; }
-    assert.equal(req.headers['x-emby-token'], 'test-token'); calls.push(req.method + ' ' + route);
+    if (!req.headers.authorization?.includes('Token="test-token"')) { res.statusCode=401; res.setHeader('Content-Type','application/json'); res.end(JSON.stringify({error:'Modern Jellyfin authorization required'})); return; }
+    assert.equal(req.headers['x-emby-token'], undefined); calls.push(req.method + ' ' + route);
     let text = ''; for await (const chunk of req) text += chunk; const body = text ? JSON.parse(text) : null;
     if (route.includes('/pages/')) { res.setHeader('Content-Type', 'image/svg+xml'); res.end(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1100" viewBox="0 0 800 1100"><rect width="800" height="1100" fill="#f5f0e6"/><text x="40" y="65" font-family="sans-serif" font-size="24" fill="#293137">THE LANTERN KEEPER</text><text x="40" y="95" font-family="sans-serif" font-size="13" fill="#555">READER TEST FIXTURE · PAGE ${route.split('/').pop()}</text><rect x="40" y="125" width="720" height="340" fill="#283345"/><circle cx="610" cy="225" r="50" fill="#c2f36b"/><path d="M40 465L40 370 180 300 180 370 310 240 310 350 470 280 470 465" fill="#171d28"/><rect x="40" y="490" width="345" height="400" fill="#d9d1c0" stroke="#293137" stroke-width="3"/><rect x="410" y="490" width="350" height="400" fill="#293137"/><rect x="460" y="575" width="250" height="215" fill="#b7c0c9"/><path d="M580 575V790M460 680H710" stroke="#293137" stroke-width="12"/><text x="70" y="550" font-family="sans-serif" font-size="17">Every story begins</text><text x="70" y="580" font-family="sans-serif" font-size="17">with a little light.</text><rect x="40" y="915" width="720" height="125" fill="#c2f36b"/><text x="75" y="985" font-family="sans-serif" font-size="22">Layout fixture — not downloaded manga</text></svg>`); return; }
     let result;
@@ -42,7 +45,7 @@ const server = http.createServer(async (req, res) => {
         for (const [name, width, height] of [['desktop', 1440, 1000], ['tablet', 820, 1180], ['mobile', 390, 844]]) {
             progress = []; const page = await browser.newPage({ viewport: { width, height } }); page.setDefaultTimeout(10000); const errors = []; page.on('pageerror', e => errors.push(e.message));
             await page.goto(`http://127.0.0.1:${server.address().port}/base/web/index.html`);
-            await page.locator('[data-jellymanga-nav]').click(); await page.locator('#jm-app h1').waitFor();
+            await page.locator('[data-jellymanga-header]').click(); assertions++; await page.locator('#jm-app h1').waitFor();
             assert.equal(await page.locator('#foreign-plugin').count(), 1); assertions++;
             assert.equal(await page.locator('[data-jellymanga-nav]').count(), 1); assertions++;
             await page.screenshot({ path: path.join(artifacts, name + '-library.png') });
@@ -59,6 +62,13 @@ const server = http.createServer(async (req, res) => {
             await page.getByRole('button', { name: 'Settings', exact: true }).click(); await page.getByRole('button', { name: 'Save settings' }).click(); await page.getByRole('status').filter({ hasText: 'saved' }).waitFor(); assertions++;
             assert.equal(await page.locator('#jm-app').evaluate(e => e.scrollWidth <= e.clientWidth), true); assertions++;
             await page.getByRole('button', { name: 'Back to Jellyfin' }).click(); await page.waitForFunction(() => !document.getElementById('jm-app')); assertions++;
+            await page.goto(`http://127.0.0.1:${server.address().port}/base/web/configurationpage?name=JellyManga`);
+            await page.getByRole('heading', { name: 'Manga control room.' }).waitFor();
+            assert.equal(await page.locator('#jm-open-admin').count(),0); assertions++;
+            assert.equal(await page.locator('#jm-dashboard-host > #jm-app.jm-embedded').count(),1); assertions++;
+            await page.evaluate(() => { const p=document.getElementById('jellyMangaConfigurationPage'); p.dispatchEvent(new Event('viewshow')); p.dispatchEvent(new Event('pageshow')); });
+            await page.waitForTimeout(200); assert.equal(await page.locator('#jm-app').count(),1); assertions++;
+            await page.screenshot({ path: path.join(artifacts, name + '-direct-dashboard.png') });
             assert.deepEqual(errors, []); assertions++; await page.close();
         }
         assert.equal(requested, 3); assert(calls.every(c => !c.includes('undefined'))); assertions += 2;
