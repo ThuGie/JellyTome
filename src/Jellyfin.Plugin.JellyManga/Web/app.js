@@ -20,14 +20,15 @@
     function close(push = true) { const embedded = root?.dataset.embedded === '1'; generation++; clearInterval(poll); reader = null; releaseImages(); root?.remove(); root = null; main = null; document.removeEventListener('keydown', keys); if (push && !embedded && history.state?.jellyManga) history.back(); }
     async function open(tab = 'library', options = {}) {
         if (typeof ApiClient === 'undefined' || !ApiClient.accessToken()) return;
+        if (tab === 'admin' && !options.host) { location.hash = '#/configurationpage?name=JellyManga'; return; }
         if (root) { if ((options.host && root.parentNode === options.host) || (!options.host && root.dataset.embedded !== '1')) { await navigate(tab); return; } close(false); }
         root = element('section'); root.id = 'jm-app'; root.setAttribute('aria-label', 'JellyTome'); if (options.host) { root.className = 'jm-embedded'; root.dataset.embedded = '1'; }
         const header = element('header', 'jm-header'); const brand = element('div', 'jm-brand', 'Jelly'); brand.append(element('span', '', 'Tome'));
-        const nav = element('nav', 'jm-nav'); nav.setAttribute('aria-label', 'Manga navigation');
+        const nav = element('nav', 'jm-nav'); nav.setAttribute('aria-label', 'Manga navigation'); if (options.host) nav.hidden = true;
         header.append(brand, nav, button('Back to Jellyfin', () => close(), 'jm-close')); main = element('main', 'jm-main'); root.append(header, main); (options.host || document.body).append(root); if (options.host) header.querySelector('.jm-close').hidden = true;
         try {
             session = await api('session');
-            for (const [id, label] of [['discover', 'Discover'], ['library', 'My library'], ['continue', 'Continue reading'], ['downloads', 'Downloads'], ...(session.admin ? [['admin', 'Admin dashboard']] : [])]) {
+            for (const [id, label] of (options.host ? [] : [['discover', 'Discover'], ['library', 'My library'], ['continue', 'Continue reading'], ['downloads', 'Downloads']])) {
                 const b = button(label, () => navigate(id)); b.dataset.tab = id; nav.append(b);
             }
             if (!options.host) history.pushState({ ...(history.state || {}), jellyManga: true }, '', location.href);
@@ -97,7 +98,7 @@
         }; await refresh(); poll = setInterval(() => refresh().catch(e => message(e.message, true)), 5000);
     }
     async function admin(section, version = generation) {
-        if (!session.admin) throw new Error('Administrator access required.');
+        if (!session.admin || root?.dataset.embedded !== '1') throw new Error('Open administration from Jellyfin Dashboard > JellyTome.');
         main.replaceChildren(); heading('Manga control room.', 'Sources, downloads, storage, and access in one place.');
         const tabs = element('nav', 'jm-admin-tabs'); tabs.setAttribute('aria-label', 'Administration');
         for (const label of ['Overview', 'Sources', 'Downloads', 'Monitored series', 'Storage', 'Users', 'Settings', 'Diagnostics']) tabs.append(button(label, () => { generation++; return admin(label); }, label === section ? 'jm-primary' : ''));
@@ -124,7 +125,8 @@
         const config = await api('admin/settings'); if (version !== generation) return; const form = element('form', 'jm-form'); panel.append(form);
         const controls = {};
         if (section === 'Settings' || section === 'Storage') {
-            controls.storagePath = field(form, 'Absolute manga storage directory', config.storagePath); const label = element('label', '', 'Jellyfin library controlling user access'); const select = element('select'); select.append(new Option('Select library…', '')); for (const lib of overview.libraries) select.append(new Option(lib.name, lib.itemId)); select.value = config.libraryId; label.append(select); form.append(label); controls.libraryId = select;
+            const storageLabel = element('label', '', 'Manga storage folder'); const selectedFolder = element('output', 'jm-folder-path', config.storagePath || 'No folder selected'); selectedFolder.value = config.storagePath || ''; selectedFolder.setAttribute('aria-label', 'Selected manga folder'); controls.storagePath = selectedFolder;
+            const choose = button('Choose folder', () => directoryPicker(selectedFolder.value, overview.libraries, path => { selectedFolder.value = path; choose.focus(); })); storageLabel.append(selectedFolder, choose); form.append(storageLabel); const label = element('label', '', 'Jellyfin library controlling user access'); const select = element('select'); select.append(new Option('Select library…', '')); for (const lib of overview.libraries) select.append(new Option(lib.name, lib.itemId)); select.value = config.libraryId; label.append(select); form.append(label); controls.libraryId = select;
             controls.storageLimitBytes = field(form, 'Storage limit (GiB, 0 = unlimited)', config.storageLimitBytes / 1073741824, 'number'); controls.storageLimitBytes.min = '0';
         }
         if (section === 'Settings') { controls.monitorMinutes = field(form, 'Check releases every (minutes)', config.monitorMinutes, 'number'); controls.downloadConcurrency = field(form, 'Concurrent chapter downloads (1–8)', config.downloadConcurrency, 'number'); controls.paused = field(form, 'Pause queue and monitoring', config.paused, 'checkbox'); }
@@ -132,6 +134,35 @@
         if (section === 'Users') { form.append(element('p', 'jm-muted', 'Users with access to the configured Jellyfin library can search, read, and request immediately. Block individual accounts below. Administrators retain access.')); for (const user of overview.users) { const input = field(form, 'Block ' + user.username, config.deniedUsers.some(id => id.replaceAll('-', '') === user.id.replaceAll('-', '')), 'checkbox'); blocked.push([user.id, input]); } }
         const save = button('Save settings', () => form.requestSubmit(), 'jm-primary'); form.append(save);
         form.onsubmit = async e => { e.preventDefault(); try { const update = { ...config }; for (const [key, input] of Object.entries(controls)) update[key] = input.type === 'checkbox' ? input.checked : input.type === 'number' ? Number(input.value) * (key === 'storageLimitBytes' ? 1073741824 : 1) : input.value; if (section === 'Users') update.deniedUsers = blocked.filter(x => x[1].checked).map(x => x[0]); await api('admin/settings', 'PUT', update); message('Settings saved.'); } catch (ex) { message(ex.message, true); } };
+    }
+    async function serverApi(path) {
+        const response = await fetch(ApiClient.getUrl(path), { credentials: 'same-origin', headers: sessionHeaders() });
+        const text = await response.text(); let data; try { data = text ? JSON.parse(text) : null; } catch (_) { data = text; }
+        if (!response.ok) throw new Error(data?.error || data?.Message || 'Jellyfin cannot browse this folder. Check the server account permissions.');
+        return data;
+    }
+    async function directoryPicker(initial, libraries, select) {
+        const dialog = element('dialog', 'jm-directory-picker'); dialog.setAttribute('aria-label', 'Choose manga folder on server');
+        const title = element('h2', '', 'Choose manga folder'); const help = element('p', 'jm-muted', 'Browse folders on your Jellyfin server.');
+        const location = element('output', 'jm-folder-path', 'Server roots'); location.setAttribute('aria-label', 'Current server folder');
+        const status = element('p', 'jm-muted'); status.setAttribute('role', 'status'); const list = element('div', 'jm-directory-list'); const toolbar = element('div', 'jm-actions'); const actions = element('div', 'jm-actions');
+        let path = '', revision = 0;
+        const choose = button('Use this folder', () => { if (path) { select(path); dialog.close(); } }, 'jm-primary'); choose.disabled = true;
+        async function visit(next) {
+            const request = ++revision; choose.disabled = true; list.replaceChildren(); status.textContent = 'Loading folders...';
+            try {
+                const items = await serverApi(next ? 'Environment/DirectoryContents?includeDirectories=true&includeFiles=false&path=' + encodeURIComponent(next) : 'Environment/Drives');
+                if (!dialog.open || request !== revision) return;
+                path = next; location.value = path || 'Server roots'; status.textContent = items.length ? '' : 'No subfolders. You can select this folder.';
+                for (const item of items) { const name = item.Name ?? item.name; const folder = item.Path ?? item.path; const entry = button(name, () => visit(folder), 'jm-directory-entry'); const icon = element('span', 'material-icons notranslate', 'folder'); icon.setAttribute('aria-hidden', 'true'); entry.prepend(icon); list.append(entry); }
+                choose.disabled = !path;
+            } catch (error) { if (request === revision) status.textContent = error.message; }
+        }
+        toolbar.append(button('Server roots', () => visit('')), button('Up', async () => { if (!path) return; try { await visit(await serverApi('Environment/ParentPath?path=' + encodeURIComponent(path)) || ''); } catch (error) { status.textContent = error.message; } }));
+        const shortcuts = element('div', 'jm-actions');
+        for (const library of libraries) for (const folder of (library.locations || library.Locations || [])) shortcuts.append(button(library.name || library.Name || folder, () => visit(folder)));
+        actions.append(button('Cancel', () => dialog.close()), choose); dialog.append(title, help, toolbar, shortcuts, location, status, list, actions); root.append(dialog);
+        dialog.addEventListener('close', () => { revision++; dialog.remove(); }); dialog.showModal(); await visit(initial || '');
     }
     async function sourceAdmin(panel, version) {
         const sources = await api('admin/sources'); if (version !== generation) return;
@@ -191,7 +222,7 @@
     }
     async function move(delta) { if (!reader) return; const step = reader.mode === 'double' && innerWidth > 700 ? 2 : 1; reader.page = Math.max(0, Math.min(reader.total - 1, reader.page + delta * (Math.abs(delta) === 1 ? step : 1))); await drawPages(); }
     async function nextChapter() { if (!reader) return; const r = reader; const jobs = (await api('library/' + r.chapter.seriesId + '/chapters')).filter(j => j.status === 'Complete'); const next = jobs[jobs.findIndex(j => j.chapter.id === r.id) + 1]; if (next) await read(next.chapter.id, 0); else message('You are up to date with downloaded chapters.'); }
-    function keys(e) { if (!root) return; if (e.key === 'Escape' && !document.fullscreenElement) { close(); return; } if (!reader || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return; if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); move((e.key === 'ArrowRight' ? 1 : -1) * (reader.mode === 'rtl' ? -1 : 1)).catch(ex => message(ex.message, true)); } }
+    function keys(e) { if (!root || root.querySelector('dialog[open]')) return; if (e.key === 'Escape' && !document.fullscreenElement) { close(); return; } if (!reader || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return; if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); move((e.key === 'ArrowRight' ? 1 : -1) * (reader.mode === 'rtl' ? -1 : 1)).catch(ex => message(ex.message, true)); } }
     // Scope observers to adding our own entries; never rewrite/remove another plugin's navigation.
     let scheduled = false;
     function mountNavigation() {
@@ -201,15 +232,11 @@
             const entry = button('', () => open('library')); entry.className = 'paper-icon-button-light headerButton headerButtonRight emby-button jm-header-icon'; entry.dataset.jellymangaHeader = '1'; entry.title = 'JellyTome'; entry.setAttribute('aria-label', 'JellyTome');
             const image = element('img'); image.src = ApiClient.getUrl('JellyManga/assets/icon.png'); image.alt = ''; image.setAttribute('aria-hidden', 'true'); image.onerror = () => { const glyph = element('span', 'material-icons notranslate', 'menu_book'); glyph.setAttribute('aria-hidden', 'true'); image.replaceWith(glyph); }; entry.append(image); parent.prepend(entry);
         }
-        for (const parent of document.querySelectorAll('.mainDrawer-scrollContainer .navMenuOptionContainer, .mainDrawer .navMenuOptionContainer')) {
-            if (parent.querySelector('[data-jellymanga-nav]')) continue;
-            const link = element('a', 'navMenuOption emby-button'); link.href = '#'; link.dataset.jellymangaNav = '1'; const icon = element('span', 'material-icons navMenuOptionIcon', 'menu_book'); icon.setAttribute('aria-hidden', 'true'); link.append(icon, element('span', 'navMenuOptionText', 'Manga')); link.onclick = e => { e.preventDefault(); open(); }; parent.append(link);
-        }
-        const home = document.querySelector('#indexPage:not(.hide) .homeSectionsContainer'); if (home && !home.querySelector('[data-jellymanga-home]')) { const section = element('section', 'verticalSection'); section.dataset.jellymangaHome = '1'; const b = button('Manga · Browse & read', () => open('library')); b.className = 'raised emby-button'; section.append(b); home.prepend(section); }
+        document.querySelectorAll('[data-jellymanga-home], [data-jellymanga-nav]').forEach(entry => entry.remove());
     }
     const observer = new MutationObserver(() => { if (!scheduled) { scheduled = true; setTimeout(mountNavigation, 150); } }); observer.observe(document.documentElement, { childList: true, subtree: true });
-    window.addEventListener('popstate', () => { if (root) close(false); });
-    window.addEventListener('hashchange', () => { if (root) close(false); });
+    window.addEventListener('popstate', () => { if (root && root.dataset.embedded !== '1') close(false); });
+    window.addEventListener('hashchange', () => { if (root && root.dataset.embedded !== '1') close(false); });
     window.addEventListener('beforeunload', () => releaseImages());
     document.addEventListener('visibilitychange', () => { if (reader && document.hidden) saveProgress().catch(() => {}); });
     window.JellyManga = { open, close, closeEmbedded: host => { if (root?.parentNode === host) close(false); } }; mountNavigation();

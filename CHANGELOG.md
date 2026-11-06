@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0.3
+
+- Keep only the JellyTome icon in the top header; remove the Home text button and extra drawer shortcut.
+- Keep administrator menus exclusively inside the Jellyfin dashboard, with reader navigation exclusively in the reader.
+- Replace typed storage paths with a server-side folder picker using Jellyfin's directory browser APIs, with server roots, folder navigation, parent navigation, library shortcuts, selection, and cancellation.
+- Keep the embedded dashboard visible during Jellyfin route events and place it below the native header.
+- Verify server-folder selection and separate navigation in desktop, tablet, and mobile tests.
+
 ## 0.1.0.2
 
 - Add the JellyTome icon to Jellyfin's top header, including mobile layouts.

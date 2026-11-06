@@ -27,3 +27,7 @@ Source results are maintained separately in [source-status.md](source-status.md)
 ## 0.1.0.2 regression verification
 
 Verified header icon access and direct embedded administrator settings on real Jellyfin 10.11.11 with `EnableLegacyAuthorization=false`, on desktop and mobile. All 42 live HTTP checks passed with modern MediaBrowser authorization. Browser fixtures now reject legacy token headers and passed 44 assertions across desktop/tablet/mobile, including duplicate page events and settings-page auto-opening. Backend tests remain 29 passing.
+
+## 0.1.0.3 regression verification
+
+Browser fixtures passed 62 assertions, covering icon-only header access, no Home/drawer text shortcut, separate reader/admin menus, browsing server roots and folders, saving the selected directory, and cancelling without closing settings. Real Jellyfin 10.11.11 tests passed on desktop/mobile with the new 0.1.0.3 build confirmed active, including the native server directory endpoints with legacy authorization disabled.

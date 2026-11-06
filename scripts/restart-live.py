@@ -1,6 +1,6 @@
 """Upgrade/restart only the recorded, isolated test server, verifying both server ID and process path."""
 import argparse,json,os,pathlib,signal,subprocess,time,urllib.request,zipfile
-root=pathlib.Path(__file__).resolve().parents[1];live=root/'artifacts/jellyfin-live';p=argparse.ArgumentParser();p.add_argument('--server');p.add_argument('--ffmpeg');p.add_argument('--reference',action='append',default=[]);p.add_argument('--stopped',action='store_true');a=p.parse_args()
+root=pathlib.Path(__file__).resolve().parents[1];live=root/'artifacts/jellyfin-live';p=argparse.ArgumentParser();p.add_argument('--server');p.add_argument('--ffmpeg');p.add_argument('--reference',action='append',default=[]);p.add_argument('--stopped',action='store_true');p.add_argument('--version',default='0.1.0.0');a=p.parse_args()
 s=json.loads((live/'session.json').read_text());server=a.server or s.get('serverExe');ffmpeg=a.ffmpeg or s.get('ffmpeg');assert server and ffmpeg,'Supply server and ffmpeg paths on the first restart.'
 if not a.stopped:
     info=json.load(urllib.request.urlopen(s['base']+'/System/Info/Public'));assert info['Id']==s['serverId'],'Wrong server identity'
@@ -9,14 +9,14 @@ if os.name=='nt':command_line=subprocess.check_output(['powershell','-NoProfile'
 else:command_line=pathlib.Path(f'/proc/{pid}/cmdline').read_bytes().decode().replace('\0',' ')
 if a.stopped:assert not command_line.strip(),'Recorded server process is still running; omit --stopped.'
 else:assert str(live).casefold() in command_line.casefold() and 'jellyfin' in command_line.casefold(),'Refusing to stop a process outside the isolated test directory.'
-subprocess.run(['python',str(root/'scripts/package.py')],check=True)
+subprocess.run(['python',str(root/'scripts/package.py'),'--version',a.version],check=True)
 if not a.stopped:os.kill(pid,signal.SIGTERM)
 for _ in range(50):
     try:urllib.request.urlopen(s['base']+'/System/Info/Public',timeout=.2);time.sleep(.2)
     except Exception:break
 for attempt in range(50):
     try:
-        with zipfile.ZipFile(root/'artifacts/releases/JellyTome_0.1.0.0.zip') as z:z.extractall(live/'data/plugins/JellyManga')
+        with zipfile.ZipFile(root/('artifacts/releases/JellyTome_'+a.version+'.zip')) as z:z.extractall(live/('data/plugins/JellyTome_'+a.version))
         break
     except PermissionError:
         if attempt==49:raise

@@ -17,8 +17,8 @@ Add this URL under **Dashboard → Plugins → Repositories**, then install Jell
 1. Use Jellyfin **10.11.x with .NET 9**. The actual server integration was tested on **10.11.11**; earlier 10.11 builds are compile targets, not individually certified. Jellyfin 12 is not a supported target for this release.
 2. Install the [File Transformation plugin](https://github.com/IAmParadox27/jellyfin-plugin-file-transformation) using its repository and the version matching your Jellyfin server.
 3. Build `python scripts/package.py`, or use the generated `artifacts/releases/JellyTome_0.1.0.0.zip`. Stop Jellyfin, extract the archive to a new `JellyTome` directory inside Jellyfin's plugins directory, and restart. Do not install test/probe binaries.
-4. Open **Dashboard → Plugins → JellyTome**. Choose an existing Books library, an absolute writable manga storage directory, and a storage budget. The plugin uses the chosen library's access permissions. Prefer a storage directory inside that library.
-5. Open Sources, enable and test desired adapters, and then open the **JellyTome icon in the top header**, **Manga** in Jellyfin's drawer, or the Home shortcut. Requesting a manga immediately downloads available English chapters and monitors future releases.
+4. Open **Dashboard → Plugins → JellyTome**. Choose an existing Books library, click **Choose folder** to browse the server and select a writable manga storage directory, and set a storage budget. The plugin uses the chosen library's access permissions. Prefer a storage directory inside that library.
+5. Open Sources, enable and test desired adapters, and then open the **JellyTome icon in the top header**. Requesting a manga immediately downloads available English chapters and monitors future releases.
 
 For a Synology package installation, use the plugin directory belonging to that package and give the Jellyfin service account write permission on the chosen manga directory. Paths vary between package maintainers; this plugin does not assume a NAS model or a hardcoded `/var/packages` location. It does not alter the installed Jellyfin web files.
 
@@ -35,7 +35,7 @@ For a Synology package installation, use the plugin directory belonging to that 
 
 Native client support depends on the client using Jellyfin's web interface. The official Android mobile client's web integration is an intended target, but **a physical Android app session has not been tested**. Mobile Chromium tests are not presented as native-app certification. See [compatibility and validation](docs/compatibility.md).
 
-The plugin settings page renders the administrator dashboard directly. Requests use Jellyfin's modern session authorization and work with legacy authorization disabled.
+The plugin settings page renders the administrator dashboard directly, with no reader menus. The reader contains no administrator menus. Storage selection uses a server-side folder picker rather than a typed path. Requests use Jellyfin's modern session authorization and work with legacy authorization disabled.
 
 ## Develop and test
 

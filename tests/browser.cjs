@@ -21,6 +21,13 @@ const server = http.createServer(async (req, res) => {
     if (!req.headers.authorization?.includes('Token="test-token"')) { res.statusCode=401; res.setHeader('Content-Type','application/json'); res.end(JSON.stringify({error:'Modern Jellyfin authorization required'})); return; }
     assert.equal(req.headers['x-emby-token'], undefined); calls.push(req.method + ' ' + route);
     let text = ''; for await (const chunk of req) text += chunk; const body = text ? JSON.parse(text) : null;
+    if (url.pathname.startsWith('/base/Environment/')) {
+        res.setHeader('Content-Type','application/json');
+        if (url.pathname.endsWith('/Drives')) res.end(JSON.stringify([{Name:'NAS volume',Path:'/volume1',Type:'Directory'}]));
+        else if (url.pathname.endsWith('/ParentPath')) res.end(JSON.stringify('/volume1'));
+        else { const p=url.searchParams.get('path'); res.end(JSON.stringify(p==='/volume1' ? [{Name:'Comics',Path:'/volume1/Comics',Type:'Directory'},{Name:'Manga',Path:'/volume1/Manga',Type:'Directory'}] : [])); }
+        return;
+    }
     if (route.includes('/pages/')) { res.setHeader('Content-Type', 'image/svg+xml'); res.end(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1100" viewBox="0 0 800 1100"><rect width="800" height="1100" fill="#f5f0e6"/><text x="40" y="65" font-family="sans-serif" font-size="24" fill="#293137">THE LANTERN KEEPER</text><text x="40" y="95" font-family="sans-serif" font-size="13" fill="#555">READER TEST FIXTURE · PAGE ${route.split('/').pop()}</text><rect x="40" y="125" width="720" height="340" fill="#283345"/><circle cx="610" cy="225" r="50" fill="#c2f36b"/><path d="M40 465L40 370 180 300 180 370 310 240 310 350 470 280 470 465" fill="#171d28"/><rect x="40" y="490" width="345" height="400" fill="#d9d1c0" stroke="#293137" stroke-width="3"/><rect x="410" y="490" width="350" height="400" fill="#293137"/><rect x="460" y="575" width="250" height="215" fill="#b7c0c9"/><path d="M580 575V790M460 680H710" stroke="#293137" stroke-width="12"/><text x="70" y="550" font-family="sans-serif" font-size="17">Every story begins</text><text x="70" y="580" font-family="sans-serif" font-size="17">with a little light.</text><rect x="40" y="915" width="720" height="125" fill="#c2f36b"/><text x="75" y="985" font-family="sans-serif" font-size="22">Layout fixture — not downloaded manga</text></svg>`); return; }
     let result;
     if (route === 'session') result = { userId: 'user-1', admin: true };
@@ -47,7 +54,9 @@ const server = http.createServer(async (req, res) => {
             await page.goto(`http://127.0.0.1:${server.address().port}/base/web/index.html`);
             await page.locator('[data-jellymanga-header]').click(); assertions++; await page.locator('#jm-app h1').waitFor();
             assert.equal(await page.locator('#foreign-plugin').count(), 1); assertions++;
-            assert.equal(await page.locator('[data-jellymanga-nav]').count(), 1); assertions++;
+            assert.equal(await page.locator('[data-jellymanga-nav], [data-jellymanga-home]').count(), 0); assertions++;
+            assert.equal(await page.getByRole('button', {name:'Admin dashboard',exact:true}).count(),0); assertions++;
+            assert.equal(await page.getByText('Manga · Browse & read',{exact:true}).count(),0); assertions++;
             await page.screenshot({ path: path.join(artifacts, name + '-library.png') });
             await page.getByRole('button', { name: 'Discover', exact: true }).click(); await page.getByRole('textbox', { name: 'Search manga', exact: true }).fill('Lantern'); await page.getByRole('button', { name: 'Search', exact: true }).click(); await page.getByRole('button', { name: 'Request & monitor' }).click();
             await page.getByRole('status').filter({ hasText: 'requested' }).waitFor(); assertions++;
@@ -57,11 +66,21 @@ const server = http.createServer(async (req, res) => {
             await page.keyboard.press('ArrowLeft'); await page.waitForFunction(() => document.querySelector('.jm-reader-bottom input').value === '3'); assertions++;
             await page.getByRole('combobox', { name: 'Reading mode' }).selectOption('vertical'); await page.waitForTimeout(350); assert.equal(await page.locator('.jm-reader-pages img').count(), 5); assertions++;
             await page.screenshot({ path: path.join(artifacts, name + '-reader.png') });
-            await page.getByRole('button', { name: '← Library', exact: true }).click(); await page.getByRole('button', { name: 'Admin dashboard', exact: true }).click(); await page.getByRole('button', { name: 'Sources', exact: true }).click(); await page.getByRole('button', { name: 'Edit / rules' }).waitFor();
+            await page.getByRole('button', { name: '← Library', exact: true }).click(); await page.goto(`http://127.0.0.1:${server.address().port}/base/web/configurationpage?name=JellyManga`); await page.getByRole('button', { name: 'Sources', exact: true }).click(); await page.getByRole('button', { name: 'Edit / rules' }).waitFor();
             await page.screenshot({ path: path.join(artifacts, name + '-sources.png') });
             await page.getByRole('button', { name: 'Settings', exact: true }).click(); await page.getByRole('button', { name: 'Save settings' }).click(); await page.getByRole('status').filter({ hasText: 'saved' }).waitFor(); assertions++;
             assert.equal(await page.locator('#jm-app').evaluate(e => e.scrollWidth <= e.clientWidth), true); assertions++;
-            await page.getByRole('button', { name: 'Back to Jellyfin' }).click(); await page.waitForFunction(() => !document.getElementById('jm-app')); assertions++;
+            assert.equal(await page.getByRole('button', {name:'Discover',exact:true}).count(),0); assertions++;
+            await page.getByRole('button', {name:'Choose folder',exact:true}).click();
+            const picker=page.getByRole('dialog',{name:'Choose manga folder on server'}); await picker.waitFor();
+            await picker.getByRole('button',{name:'Server roots',exact:true}).click();
+            await picker.getByRole('button',{name:'NAS volume',exact:true}).click();
+            await picker.getByRole('button',{name:'Comics',exact:true}).click();
+            await picker.getByRole('button',{name:'Use this folder',exact:true}).click();
+            assert.equal(await page.getByLabel('Selected manga folder').textContent(),'/volume1/Comics'); assertions++;
+            await page.getByRole('button',{name:'Save settings',exact:true}).click(); await page.getByRole('status').filter({hasText:'saved'}).waitFor(); assert.equal(savedSettings.storagePath,'/volume1/Comics'); assertions++;
+            await page.getByRole('button',{name:'Choose folder',exact:true}).click(); await page.keyboard.press('Escape'); await page.waitForFunction(()=>!document.querySelector('dialog[open]')); assert.equal(await page.locator('#jm-app').count(),1); assertions++;
+            await page.evaluate(()=>window.JellyManga.close(false)); await page.waitForFunction(() => !document.getElementById('jm-app')); assertions++;
             await page.goto(`http://127.0.0.1:${server.address().port}/base/web/configurationpage?name=JellyManga`);
             await page.getByRole('heading', { name: 'Manga control room.' }).waitFor();
             assert.equal(await page.locator('#jm-open-admin').count(),0); assertions++;

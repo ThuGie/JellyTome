@@ -5,3 +5,7 @@
 @media(prefers-reduced-motion:no-preference){#jm-app .jm-card{transition:border-color .15s,transform .15s}#jm-app .jm-card:hover{border-color:#637046;transform:translateY(-2px)}}
 
 #jm-app.jm-embedded{position:relative;inset:auto;z-index:auto;min-height:70vh;border-radius:12px;margin:0 1em 2em} .jm-header-icon{display:inline-flex!important;align-items:center;justify-content:center;width:44px;height:44px;flex-shrink:0} .jm-header-icon img{display:block;width:27px;height:27px;object-fit:contain;border-radius:7px} #jm-app.jm-embedded .jm-main{padding-top:25px}
+
+#jm-app.jm-embedded{margin:4em 0 2em} #jm-app .jm-folder-path{display:block;padding:12px;background:#121722;border:1px solid var(--jm-line);border-radius:8px;overflow-wrap:anywhere;color:#f5f6fa} #jm-app .jm-directory-picker{background:var(--jm-panel);color:#f5f6fa;border:1px solid var(--jm-line);border-radius:14px;padding:24px;width:min(640px,94vw);max-height:85vh;overflow:auto} #jm-app .jm-directory-picker::backdrop{background:#000a} #jm-app .jm-directory-picker>.jm-actions{margin:12px 0} #jm-app .jm-directory-list{max-height:40vh;min-height:60px;overflow:auto;margin:10px 0} #jm-app .jm-directory-entry{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-bottom:6px} #jm-app .jm-directory-picker>.jm-actions:last-child{justify-content:flex-end}
+
+#jm-app .jm-directory-entry{white-space:normal;overflow-wrap:anywhere;word-break:break-word} #jm-app .jm-directory-entry .material-icons{flex-shrink:0}
