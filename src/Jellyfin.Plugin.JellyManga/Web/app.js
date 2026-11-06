@@ -212,17 +212,84 @@
         if (!reader) return; const r = reader; const render = ++r.render; const area = main.querySelector('.jm-reader-pages'); if (!area) return;
         pageObserver?.disconnect(); area.replaceChildren(); area.className = 'jm-reader-pages jm-' + r.mode; main.querySelector('.jm-reader-bottom input').value = r.page + 1;
         const count = r.mode === 'double' && innerWidth > 700 ? 2 : 1;
-        // Vertical uses a bounded five-page window, preventing hundreds of decoded images on mobile.
-        const indices = r.mode === 'vertical' ? Array.from({ length: Math.min(5, r.total - r.page) }, (_, i) => r.page + i) : Array.from({ length: Math.min(count, r.total - r.page) }, (_, i) => r.page + i);
+        if (r.mode === 'vertical') { drawVertical(r, render, area); await saveProgress(); return; }
+        const indices = Array.from({ length: Math.min(count, r.total - r.page) }, (_, i) => r.page + i);
         if (r.mode === 'rtl' && count === 2) indices.reverse();
         for (const page of indices) { const img = element('img'); img.alt = 'Page ' + (page + 1); img.dataset.page = page; img.loading = 'lazy'; img.style.width = r.zoom + '%'; area.append(img); imageFor(r.id, page, pageAbort.signal).then(url => { if (reader === r && render === r.render) img.src = url; }).catch(e => { if (e.name !== 'AbortError' && reader === r) message(e.message, true); }); }
-        if (r.mode === 'vertical') {
-            let timer; const observer = new IntersectionObserver(entries => { for (const entry of entries) if (entry.isIntersecting && reader === r && render === r.render) { const page = Number(entry.target.dataset.page); clearTimeout(timer); timer = setTimeout(() => { if (reader === r && render === r.render) { r.page = page; main.querySelector('.jm-reader-bottom input').value = page + 1; saveProgress().catch(e => message(e.message, true)); } }, 300); } }, { root, threshold: .15 }); pageObserver = observer; area.querySelectorAll('img').forEach(img => observer.observe(img));
-            const load = button('Continue scrolling', () => { r.page = Math.min(indices[indices.length - 1] + 1, r.total - 1); observer.disconnect(); return drawPages(); }); area.append(load);
-        }
         for (const [key, value] of blobUrls) { const [chapter, page] = key.split(':'); if (chapter !== r.id || Math.abs(Number(page) - r.page) > 6) { URL.revokeObjectURL(value); blobUrls.delete(key); } }
         if (r.page + count < r.total) imageFor(r.id, r.page + count, pageAbort.signal).catch(() => {});
         await saveProgress();
+    }
+    function drawVertical(r, render, area) {
+        for (const url of blobUrls.values()) URL.revokeObjectURL(url); blobUrls.clear();
+        const slots = [], nearby = new Set(), queued = new Set(), loading = new Map();
+        let disposed = false, frame = 0;
+        r.pageSizes ??= new Map();
+        const alive = () => !disposed && reader === r && r.render === render;
+        function discard(page) {
+            const key = r.id + ':' + page, url = blobUrls.get(key);
+            slots[page].replaceChildren();
+            if (url) { URL.revokeObjectURL(url); blobUrls.delete(key); }
+        }
+        function updateProgress() {
+            frame = 0; if (!alive()) return;
+            const line = root.getBoundingClientRect().top + Math.min(160, root.clientHeight * .25);
+            let low = 0, high = slots.length - 1;
+            while (low < high) { const middle = (low + high) >> 1; if (slots[middle].getBoundingClientRect().bottom <= line) low = middle + 1; else high = middle; }
+            if (r.page !== low) { r.page = low; main.querySelector('.jm-reader-bottom input').value = low + 1; saveProgress().catch(e => message(e.message, true)); }
+        }
+        function onScroll() { if (!frame) frame = requestAnimationFrame(updateProgress); }
+        function pump() {
+            if (!alive()) return;
+            while (loading.size < 2 && queued.size) {
+                const page = queued.values().next().value; queued.delete(page);
+                if (!nearby.has(page) || loading.has(page) || slots[page].querySelector('img')) continue;
+                const abort = new AbortController(); loading.set(page, abort);
+                imageFor(r.id, page, abort.signal).then(async url => {
+                    if (!alive() || !nearby.has(page) || abort.signal.aborted) return;
+                    const image = element('img'); image.alt = 'Page ' + (page + 1); image.decoding = 'async'; image.src = url;
+                    await image.decode();
+                    if (!alive() || !nearby.has(page) || abort.signal.aborted) return;
+                    const ratio = image.naturalWidth + ' / ' + image.naturalHeight;
+                    r.pageSizes.set(page, ratio); slots[page].style.aspectRatio = ratio;
+                    slots[page].replaceChildren(image); onScroll();
+                }).catch(error => {
+                    if (error.name !== 'AbortError' && alive() && nearby.has(page)) {
+                        const retry = button('Retry page ' + (page + 1), () => { slots[page].replaceChildren(); queued.add(page); pump(); });
+                        slots[page].replaceChildren(retry);
+                    }
+                }).finally(() => {
+                    loading.delete(page);
+                    if (!disposed && !nearby.has(page)) discard(page);
+                    if (alive() && nearby.has(page) && abort.signal.aborted) queued.add(page);
+                    pump();
+                });
+            }
+        }
+        for (let page = 0; page < r.total; page++) {
+            const slot = element('div', 'jm-vertical-page'); slot.dataset.page = page;
+            slot.setAttribute('aria-label', 'Page ' + (page + 1));
+            slot.style.width = r.zoom + '%'; slot.style.aspectRatio = r.pageSizes.get(page) || '2 / 3';
+            slots.push(slot); area.append(slot);
+        }
+        // Keep placeholders for the entire chapter; only nearby pages retain image data.
+        const observer = new IntersectionObserver(entries => {
+            if (!alive()) return;
+            for (const entry of entries) {
+                const page = Number(entry.target.dataset.page);
+                if (entry.isIntersecting) { nearby.add(page); queued.add(page); }
+                else { nearby.delete(page); queued.delete(page); loading.get(page)?.abort(); discard(page); }
+            }
+            pump(); onScroll();
+        }, { root, rootMargin: '1200px 0px', threshold: 0 });
+        pageObserver = { disconnect() {
+            disposed = true; observer.disconnect(); root?.removeEventListener('scroll', onScroll);
+            cancelAnimationFrame(frame); for (const abort of loading.values()) abort.abort();
+            for (let page = 0; page < slots.length; page++) discard(page);
+        } };
+        root.addEventListener('scroll', onScroll, { passive: true });
+        root.scrollTop += slots[r.page].getBoundingClientRect().top - root.getBoundingClientRect().top - 65;
+        slots.forEach(slot => observer.observe(slot));
     }
     async function move(delta) { if (!reader) return; const step = reader.mode === 'double' && innerWidth > 700 ? 2 : 1; reader.page = Math.max(0, Math.min(reader.total - 1, reader.page + delta * (Math.abs(delta) === 1 ? step : 1))); await drawPages(); }
     async function nextChapter() { if (!reader) return; const r = reader; const jobs = (await api('library/' + r.chapter.seriesId + '/chapters')).filter(j => j.status === 'Complete'); const next = jobs[jobs.findIndex(j => j.chapter.id === r.id) + 1]; if (next) await read(next.chapter.id, 0); else message('You are up to date with downloaded chapters.'); }

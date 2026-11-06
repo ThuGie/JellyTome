@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0.6
+
+- Replace five-page vertical batches with continuous scrolling through the entire chapter, without a Continue scrolling button.
+- Lazy-load nearby pages with two fetches at a time; release distant image data while preserving page positions and dimensions for scrolling back.
+- Track reading progress while scrolling, restore the selected page, and cancel pending loads when leaving the reader or switching modes.
+- Verify scrolling beyond page five, backward loading, memory cleanup, progress, and switching modes at desktop/tablet/mobile sizes.
+
 ## 0.1.0.5
 
 - Add an editable concurrent chapter limit per website (1–8) in Sources, alongside the clearly labeled global limit in Settings. Defaults remain two globally and one per website.

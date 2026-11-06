@@ -25,7 +25,7 @@ For a Synology package installation, use the plugin directory belonging to that 
 ## What is included
 
 - Embedded discovery, library, continue-reading, downloads, and administrator pages using Jellyfin accounts.
-- Responsive RTL/LTR, double-page, and bounded vertical reading; keyboard/touch controls, zoom, fullscreen, bookmarks, chapter navigation, and progress sync.
+- Responsive RTL/LTR, double-page, and continuous vertical reading with lazy loading; keyboard/touch controls, zoom, fullscreen, bookmarks, chapter navigation, and progress sync.
 - Immediate requests for permitted users. Administrators can block individual users in addition to the normal library permissions.
 - Persistent SQLite download queue with deduplication, retry backoff, editable per-website chapter concurrency, cancellation, pause/resume, and restart recovery.
 - English chapter discovery and six-hour monitoring by default; two chapter downloads globally and one per website by default. Adjust the global limit in Settings and each website’s limit in Sources (both 1–8); the lower applicable limit wins. Source request delays remain enforced. Lowering limits lets active chapters finish.
