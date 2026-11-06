@@ -9,6 +9,15 @@
     "imageUrl": "https://raw.githubusercontent.com/ThuGie/JellyTome/main/thumb.png",
     "versions": [
       {
+        "version": "0.1.0.3",
+        "changelog": "- Keep only the JellyTome icon in the top header; remove the Home text button and extra drawer shortcut.\n- Keep administrator menus exclusively inside the Jellyfin dashboard, with reader navigation exclusively in the reader.\n- Replace typed storage paths with a server-side folder picker using Jellyfin's directory browser APIs, with server roots, folder navigation, parent navigation, library shortcuts, selection, and cancellation.\n- Keep the embedded dashboard visible during Jellyfin route events and place it below the native header.\n- Verify server-folder selection and separate navigation in desktop, tablet, and mobile tests.",
+        "targetAbi": "10.11.3.0",
+        "sourceUrl": "https://github.com/ThuGie/JellyTome/releases/download/v0.1.0.3/JellyTome_0.1.0.3.zip",
+        "checksum": "5c82c8857d6b09a4177b65b6c22219ba",
+        "timestamp": "2026-11-06T16:57:52.548642+00:00",
+        "dependencies": []
+      },
+      {
         "version": "0.1.0.2",
         "changelog": "- Add the JellyTome icon to Jellyfin's top header, including mobile layouts.\n- Open the administrator dashboard directly inside the plugin settings page; remove the extra launch button.\n- Use Jellyfin's current session authorization headers for API calls and reader images, fixing 401 errors when legacy authorization is disabled.\n- Test direct settings navigation, header access, repeated page events, and modern authorization on desktop/tablet/mobile, plus a real Jellyfin server with legacy authorization disabled.",
         "targetAbi": "10.11.3.0",
