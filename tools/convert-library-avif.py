@@ -7,6 +7,7 @@ parser.add_argument("library", type=pathlib.Path)
 parser.add_argument("--quality", type=int, default=65)
 parser.add_argument("--workers", type=int, default=4)
 parser.add_argument("--backup", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1] / "artifacts/library-avif65-backups")
+parser.add_argument("--retry-failed", action="store_true", help="Retry only the latest failed entries in the backup conversion log.")
 parser.add_argument("--apply", action="store_true", help="Replace originals after backup and validation; otherwise only show the inventory.")
 args = parser.parse_args()
 if not 1 <= args.quality <= 100 or not 1 <= args.workers <= 16:
@@ -34,6 +35,13 @@ for directory, dirs, names in os.walk(root, followlinks=False):
     for name in sorted(names):
         if name.lower().endswith(".cbz"):
             path = pathlib.Path(directory, name); safe(path); files.append(path)
+if args.retry_failed:
+    retry_log = backup / "conversion-results.jsonl"
+    if not retry_log.exists(): parser.error("No conversion log exists to retry.")
+    latest = {}
+    for line in retry_log.read_text(encoding="utf8").splitlines():
+        row = json.loads(line); latest[row["file"]] = row
+    files = [p for p in files if latest.get(str(p.relative_to(root)), {}).get("status") == "failed"]
 total = sum(p.stat().st_size for p in files)
 print(f"{len(files)} CBZs, {total / 1e9:.3f} GB; quality {args.quality}, {args.workers} workers.", flush=True)
 if not args.apply:
@@ -82,8 +90,14 @@ def convert(path):
                             image.load(); size = image.size
                             if image.info.get("icc_profile"):
                                 profile = ImageCms.ImageCmsProfile(io.BytesIO(image.info["icc_profile"]))
-                                mode = "RGBA" if image.has_transparency_data else "RGB"
-                                image = ImageCms.profileToProfile(image, profile, ImageCms.createProfile("sRGB"), outputMode=mode)
+                                # Some scan files carry an ICC profile for a different pixel mode.
+                                # Normalize the input mode to its declared profile before transforming.
+                                space = profile.profile.xcolor_space.strip()
+                                mode = {"GRAY": "L", "RGB": "RGB", "CMYK": "CMYK"}.get(space)
+                                if mode is None: raise ValueError("Unsupported ICC colour space: " + space)
+                                alpha = image.convert("RGBA").getchannel("A") if image.has_transparency_data else None
+                                image = ImageCms.profileToProfile(image.convert(mode), profile, ImageCms.createProfile("sRGB"), outputMode="RGB")
+                                if alpha is not None: image.putalpha(alpha)
                             else: image = image.convert("RGBA" if image.has_transparency_data else "RGB")
                             output = io.BytesIO()
                             image.save(output, format="AVIF", quality=args.quality, speed=6, subsampling="4:4:4", max_threads=2)
