@@ -107,7 +107,7 @@ public sealed class MangaController(Store store, SourceRegistry sources, MangaSe
     {
         Access(); var bytes = await storage.Page(Complete(id), page, ct); var extension = LibraryStorage.ImageExtension(bytes);
         Response.Headers.CacheControl = "private, max-age=3600";
-        return File(bytes, extension switch { ".jpg" => "image/jpeg", ".png" => "image/png", ".webp" => "image/webp", _ => "image/gif" });
+        return File(bytes, extension switch { ".jpg" => "image/jpeg", ".png" => "image/png", ".webp" => "image/webp", ".avif" => "image/avif", _ => "image/gif" });
     }
     private DownloadJob Complete(string id) { var job = store.Get<DownloadJob>("job", id); return job?.Status == "Complete" ? job : throw new KeyNotFoundException("Chapter is not downloaded."); }
     [HttpGet("progress")]
@@ -133,6 +133,7 @@ public sealed class MangaController(Store store, SourceRegistry sources, MangaSe
     [HttpPut("admin/settings"), Authorize(Policy = "RequiresElevation")]
     public ActionResult Settings([FromBody] Configuration config)
     {
+        if (config.AvifQuality is < 1 or > 100) throw new ArgumentException("AVIF quality must be 1–100.");
         if (config.DownloadConcurrency is < 1 or > 8 || config.MonitorMinutes is < 15 or > 10080 || config.StorageLimitBytes < 0) throw new ArgumentException("Concurrency must be 1–8, monitoring 15–10080 minutes, and storage limit nonnegative.");
         if (!Guid.TryParse(config.LibraryId, out var libraryId) || !libraries.GetVirtualFolders().Any(v => Guid.TryParse(v.ItemId, out var id) && id == libraryId)) throw new ArgumentException("Select an existing Jellyfin library.");
         if (string.IsNullOrWhiteSpace(config.StoragePath) || !Path.IsPathFullyQualified(config.StoragePath)) throw new ArgumentException("An absolute storage path is required.");

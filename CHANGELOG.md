@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0.7
+
+- Add AVIF image validation and image/avif responses for converted CBZ chapters.
+- Default new downloads to full-resolution AVIF quality 65; add conversion and quality controls in Settings.
+- Use Jellyfin FFmpeg with libaom-av1, two encoder slots, cancellation, staged output validation, and atomic completion.
+- Retain existing AVIF and animated pages. Supply a backed-up script for existing CBZ conversion.
+
 ## 0.1.0.6
 
 - Replace five-page vertical batches with continuous scrolling through the entire chapter, without a Continue scrolling button.

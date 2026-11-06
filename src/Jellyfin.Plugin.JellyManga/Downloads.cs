@@ -58,7 +58,14 @@ public sealed class LibraryStorage(Func<Configuration> config)
         if (bytes.Length >= 45 && bytes[..8].SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }) && bytes.Slice(bytes.Length - 8, 4).SequenceEqual("IEND"u8)) return ".png";
         if (bytes.Length >= 12 && bytes[..4].SequenceEqual("RIFF"u8) && bytes.Slice(8, 4).SequenceEqual("WEBP"u8) && System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(bytes.Slice(4, 4)) + 8L == bytes.Length) return ".webp";
         if (bytes.Length >= 14 && (bytes[..6].SequenceEqual("GIF87a"u8) || bytes[..6].SequenceEqual("GIF89a"u8)) && bytes[^1] == 0x3b) return ".gif";
-        throw new InvalidDataException("Source returned an unsupported or invalid image (JPEG, PNG, WebP, GIF required).");
+        if (bytes.Length >= 24 && bytes.Slice(4, 4).SequenceEqual("ftyp"u8))
+        {
+            var size = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(bytes[..4]);
+            if (size >= 16 && size <= bytes.Length)
+                for (var offset = 8; offset + 4 <= size; offset += 4)
+                    if (offset != 12 && bytes.Slice(offset, 4).SequenceEqual("avif"u8)) return ".avif";
+        }
+        throw new InvalidDataException("Source returned an unsupported or invalid image (JPEG, PNG, WebP, GIF, AVIF required).");
     }
     public IReadOnlyList<string> Entries(DownloadJob job)
     {
@@ -75,7 +82,7 @@ public sealed class LibraryStorage(Func<Configuration> config)
     }
 }
 
-public sealed class ChapterDownloader(SourceRegistry sources, ISourceHttp http, LibraryStorage storage)
+public sealed class ChapterDownloader(SourceRegistry sources, ISourceHttp http, LibraryStorage storage, IPageEncoder? encoder = null)
 {
     public async Task<(string Path, int Pages)> Download(DownloadJob job, CancellationToken ct, bool requireEnabled = true)
     {
@@ -90,12 +97,16 @@ public sealed class ChapterDownloader(SourceRegistry sources, ISourceHttp http, 
             await using (var file = new FileStream(temporary, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 32768, true))
             {
                 using var archive = new ZipArchive(file, ZipArchiveMode.Create, true);
-                long total = 0;
+                long total = 0, encodedTotal = 0;
                 for (int i = 0; i < pages.Count; i++)
                 {
                     ct.ThrowIfCancellationRequested(); var page = pages[i]; var definition = sources.ImageDefinition(adapter.Definition, page.Url);
                     var bytes = await http.Image(new Uri(page.Url), definition, page.Referer, ct); total += bytes.Length;
                     if (total > 512L * 1024 * 1024) throw new InvalidDataException("Chapter exceeds the 512 MiB limit.");
+                    LibraryStorage.ImageExtension(bytes);
+                    if (encoder != null) bytes = await encoder.Encode(bytes, Path.GetDirectoryName(temporary)!, ct);
+                    encodedTotal += bytes.Length;
+                    if (encodedTotal > 512L * 1024 * 1024) throw new InvalidDataException("Encoded chapter exceeds the 512 MiB limit.");
                     var entry = archive.CreateEntry(i.ToString("D5") + LibraryStorage.ImageExtension(bytes), CompressionLevel.NoCompression);
                     await using var output = entry.Open(); await output.WriteAsync(bytes, ct);
                 }

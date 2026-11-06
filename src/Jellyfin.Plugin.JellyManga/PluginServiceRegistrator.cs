@@ -13,6 +13,7 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         services.AddSingleton<ISourceHttp, SafeHttp>();
         services.AddSingleton<SourceRegistry>();
         services.AddSingleton<LibraryStorage>();
+        services.AddSingleton<IPageEncoder, AvifEncoder>();
         services.AddSingleton<ChapterDownloader>();
         services.AddSingleton<MangaService>();
         services.AddSingleton<SourceTester>();

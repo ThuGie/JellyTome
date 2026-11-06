@@ -91,8 +91,8 @@ const server = http.createServer(async (req, res) => {
             await page.getByRole('button', { name: 'Sources', exact: true }).click();
             assert.equal(await page.getByLabel('Max concurrent downloads · Fixture source').inputValue(), '4'); assertions++;
             await page.screenshot({ path: path.join(artifacts, name + '-sources.png') });
-            await page.getByRole('button', { name: 'Settings', exact: true }).click(); await page.getByLabel('Global concurrent chapter downloads (1–8)').fill('4'); await page.getByRole('button', { name: 'Save settings' }).click(); await page.getByRole('status').filter({ hasText: 'saved' }).waitFor(); assertions++;
-            assert.equal(savedSettings.downloadConcurrency, 4); assertions++;
+            await page.getByRole('button', { name: 'Settings', exact: true }).click(); await page.getByLabel('Global concurrent chapter downloads (1–8)').fill('4'); await page.getByLabel('AVIF quality (1–100)').fill('65'); await page.getByRole('button', { name: 'Save settings' }).click(); await page.getByRole('status').filter({ hasText: 'saved' }).waitFor(); assertions++;
+            assert.equal(savedSettings.downloadConcurrency, 4); assertions++; assert.equal(savedSettings.avifQuality, 65); assert.equal(savedSettings.convertToAvif, true); assertions += 2;
             assert.equal(await page.locator('#jm-app').evaluate(e => e.scrollWidth <= e.clientWidth), true); assertions++;
             assert.equal(await page.getByRole('button', {name:'Discover',exact:true}).count(),0); assertions++;
             await page.getByRole('button', {name:'Choose folder',exact:true}).click();

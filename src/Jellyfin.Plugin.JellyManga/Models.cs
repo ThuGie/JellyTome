@@ -9,6 +9,8 @@ public sealed class Configuration : BasePluginConfiguration
     public string StoragePath { get; set; } = "";
     public string LibraryId { get; set; } = "";
     public int MonitorMinutes { get; set; } = 360;
+    public bool ConvertToAvif { get; set; } = true;
+    public int AvifQuality { get; set; } = 65;
     public int DownloadConcurrency { get; set; } = 2;
     public long StorageLimitBytes { get; set; } = 50L * 1024 * 1024 * 1024;
     public bool Paused { get; set; }

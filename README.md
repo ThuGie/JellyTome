@@ -66,3 +66,9 @@ Source rules and metadata live in the plugin data directory; manga archives live
 Source extraction can break when websites change. Authentication requirements, subscriptions, encrypted pages, access challenges, and regional restrictions are reported rather than bypassed. MANGA Plus and Anime-Planet are investigated candidates, not certified download sources in this release.
 
 See [source authoring](docs/source-authoring.md), [API](docs/api.md), and [validation](docs/compatibility.md). Original code is MIT licensed. File Transformation is a separate dependency; JellySpot and JellySeerr informed the integration pattern. Keiyoushi's public source metadata informed candidate URLs and MANGA Plus wire-field investigation; Kotlin extension code is not shipped in this plugin.
+
+## AVIF storage
+
+New downloads default to full-resolution AVIF quality 65. Adjust quality (1–100), or disable conversion to retain originals, in Dashboard → JellyTome → Settings. Conversion uses Jellyfin’s configured FFmpeg and requires libaom-av1 and its AVIF muxer. Unsupported FFmpeg builds produce an actionable download error. Up to two encodes run concurrently. Quality maps 1–100 to AV1 CRF 63–0; results can differ between encoders. Existing AVIF and animated pages are retained.
+
+For existing CBZs, use tools/convert-library-avif.py with the library path and --apply. It requires Pillow with AVIF support (11.3+), defaults to quality 65, keeps verified originals in artifacts/library-avif65-backups, preserves dimensions and metadata, validates output, and replaces archives only if originals have not changed. Without --apply it only inventories. Pause downloads during bulk conversion for a stable inventory. Install JellyTome 0.1.0.7 or newer before reading AVIF archives. Other CBZ clients need their own AVIF support.
