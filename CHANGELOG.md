@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0.13
+
+- Start parallel chapter downloads in numeric order within the configured limits.
+- Queue each chapter list as a batch so the scheduler sees the earlier chapters before filling its slots.
+
 ## 0.1.0.12
 
 - Restore ZinManga downloads on a working replacement domain and retrieve every chapter page from its public listings API.

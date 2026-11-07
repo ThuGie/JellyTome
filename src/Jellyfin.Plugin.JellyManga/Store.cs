@@ -60,6 +60,16 @@ public sealed class Store
             var job = new DownloadJob(chapter, sourceId, user); Put("job", chapter.Id, job); return job;
         }
     }
+    public void EnqueueChapters(IEnumerable<Chapter> chapters, string sourceId, string user)
+    {
+        // The scheduler must see the whole chapter list before claiming its first job.
+        lock (_gate)
+        {
+            foreach (var chapter in chapters.OrderBy(chapter => chapter.Number))
+                Enqueue(chapter, sourceId, user);
+        }
+    }
+
     public DownloadJob? Claim(IReadOnlyDictionary<string, int> activeCounts, IReadOnlyDictionary<string, int> sourceLimits, int globalLimit)
     {
         if (activeCounts.Values.Sum() >= globalLimit) return null;
@@ -73,14 +83,12 @@ public sealed class Store
             var removals = All<string>("removing-series").ToHashSet();
             var now = DateTimeOffset.UtcNow;
             var job = All<DownloadJob>("job")
-                .Where(j => !removals.Contains(j.Chapter.SeriesId) && j.Status is not ("Complete" or "Cancelled"))
-                .GroupBy(j => j.Chapter.SeriesId)
-                .Where(series => series.All(j => j.Status != "Downloading"))
-                .Select(series => series.OrderBy(j => j.Chapter.Number).ThenBy(j => j.Chapter.Id, StringComparer.Ordinal).First())
-                .Where(j => j.Status == "Queued" && !busySources.Contains(j.SourceId) && enabled.Contains(j.SourceId)
+                .Where(j => !removals.Contains(j.Chapter.SeriesId) && j.Status == "Queued"
+                    && !busySources.Contains(j.SourceId) && enabled.Contains(j.SourceId)
                     && (j.RetryAt == null || j.RetryAt <= now))
                 .OrderBy(j => j.Chapter.Number)
                 .ThenBy(j => j.Chapter.SeriesId, StringComparer.Ordinal)
+                .ThenBy(j => j.Chapter.Id, StringComparer.Ordinal)
                 .FirstOrDefault();
             if (job == null) return null;
             job = job with { Status = "Downloading", Attempts = job.Attempts + 1, Error = null }; Put("job", job.Chapter.Id, job); return job;

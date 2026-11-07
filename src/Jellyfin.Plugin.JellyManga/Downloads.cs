@@ -135,7 +135,7 @@ public sealed class MangaService(Store store, SourceRegistry sources)
             if (store.IsRemovingSeries(series.Id)) throw new ArgumentException("Finish removing this manga before requesting it again.");
             var subscription = new Subscription(series, true, DateTimeOffset.UtcNow);
             store.Put("series", series.Id, subscription);
-            foreach (var chapter in chapters.Where(c => c.Language == "en").OrderBy(c => c.Number)) store.Enqueue(chapter, sourceId, user);
+            store.EnqueueChapters(chapters.Where(chapter => chapter.Language == "en"), sourceId, user);
             store.Put("request", Identity.For(user, series.Id), new { user, seriesId = series.Id, requestedAt = DateTimeOffset.UtcNow });
             store.Event("Request", $"{series.Title}: queued available English chapters from {sourceId} and enabled monitoring.");
             return subscription;
@@ -187,7 +187,7 @@ public sealed class MangaService(Store store, SourceRegistry sources)
                 {
                     var id = subscription.Series.Id;
                     if (store.IsRemovingSeries(id) || store.Get<Subscription>("series", id)?.Monitoring != true) continue;
-                    foreach (var chapter in chapters.Where(c => c.Language == "en").OrderBy(c => c.Number)) store.Enqueue(chapter, adapter.Definition.Id, "monitor");
+                    store.EnqueueChapters(chapters.Where(chapter => chapter.Language == "en"), adapter.Definition.Id, "monitor");
                     store.UpdateSubscription(id, current => current with { LastChecked = DateTimeOffset.UtcNow, Error = null });
                 }
                 finally { _requests.Release(); }

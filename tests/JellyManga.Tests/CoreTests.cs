@@ -74,25 +74,24 @@ public sealed class CoreTests : IDisposable
         }
     }
     [Fact]
-    public void LaterChaptersWaitForEarlierChaptersEvenWithFreeSlots()
+    public void TwoWebsiteSlotsStartChaptersOneAndTwoBeforeLaterChapters()
     {
         var store = Store();
-        foreach (var title in new[] { "Chapter 11", "Chapter 2", "Chapter 1" })
-            store.Enqueue(Chapter(title), "fixture", "user");
-        var limits = new Dictionary<string, int> { ["fixture"] = 4 };
+        store.EnqueueChapters(new[] { "Chapter 5", "Chapter 11", "Chapter 2", "Chapter 1" }.Select(Chapter), "fixture", "user");
+        var limits = new Dictionary<string, int> { ["fixture"] = 2 };
         var counts = new Dictionary<string, int>();
 
         var first = store.Claim(counts, limits, 4)!;
         Assert.Equal(1, first.Chapter.Number);
-        Assert.Null(store.Claim(counts, limits, 4));
-        Assert.True(store.Finish(first with { Status = "Queued", RetryAt = DateTimeOffset.UtcNow.AddHours(1) }));
+        counts["fixture"] = 1;
+        var second = store.Claim(counts, limits, 4)!;
+        Assert.Equal(2, second.Chapter.Number);
+        counts["fixture"] = 2;
         Assert.Null(store.Claim(counts, limits, 4));
 
-        store.Action(first.Chapter.Id, "retry");
-        var retry = store.Claim(counts, limits, 4)!;
-        Assert.Equal(first.Chapter.Id, retry.Chapter.Id);
-        Assert.True(store.Finish(retry with { Status = "Complete" }));
-        Assert.Equal(2, store.Claim(counts, limits, 4)!.Chapter.Number);
+        Assert.True(store.Finish(second with { Status = "Complete" }));
+        counts["fixture"] = 1;
+        Assert.Equal(5, store.Claim(counts, limits, 4)!.Chapter.Number);
     }
     [Fact]
     public void QueueHonorsWebsiteAndGlobalLimitsIncludingChanges()
