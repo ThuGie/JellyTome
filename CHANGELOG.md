@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0.12
+
+- Restore ZinManga downloads on a working replacement domain and retrieve every chapter page from its public listings API.
+- Verify complete downloads from Athrea Scans, ManhuaNext, and MangaFree.
+- Retire bundled sources without verified downloads and keep verification labels concise in the Sources list.
+- Add library update dates, sorting, and a Recent updates view with direct links to the latest downloaded chapters.
+- Display the source date for the latest listed chapter when provided.
+
 ## 0.1.0.11
 
 - Download one chapter at a time per series in numeric order. Earlier chapters that are paused, waiting for retry, or failed hold later chapters until resolved or explicitly cancelled.

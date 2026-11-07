@@ -56,7 +56,7 @@ jobs:
           cat >> artifacts/releases/notes.md <<'EOF'
           JellyTome preview: manga discovery, immediate requests, automatic downloads and monitoring, an embedded reader, and an administrator dashboard for Jellyfin 10.11.x.
 
-          Thirty distinct source samples are verified by complete chapter download checks. Physical Android app testing remains outstanding; desktop/tablet/mobile browser and real Jellyfin integration tests passed. See the checked-in source and compatibility reports.
+          The source report lists sites verified by complete chapter download checks. Physical Android app testing remains outstanding; desktop/tablet/mobile browser and real Jellyfin integration tests passed. See the checked-in source and compatibility reports.
 
           Install File Transformation first, then add the JellyTome catalog in Jellyfin:
 

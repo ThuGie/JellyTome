@@ -36,6 +36,11 @@ try:
     for invalid in [0,9]:call('/JellyManga/admin/sources/mangapill/downloads','PUT',dict(maxConcurrentDownloads=invalid),expected=400)
 finally:call('/JellyManga/admin/sources/mangapill/downloads','PUT',dict(maxConcurrentDownloads=source.get('maxConcurrentDownloads',1)),expected=204)
 call('/JellyManga/admin/sources/mangapill/downloads','PUT',dict(maxConcurrentDownloads=4),token=None,expected=401)
+sources=call('/JellyManga/admin/sources')
+assert any(source['id']=='zinmanga' and source['status']=='Verified' for source in sources)
+assert all(source['id']!='bato' for source in sources)
+library=next(item for item in call('/JellyManga/library') if item['series']['id']==series_id)
+assert library['lastUpdatedAt'] and library['archiveDateOnly'] and library['latestUpdatedChapter']['id']==chapter_id
 call('/JellyManga/session');assert call('/JellyManga/chapters/'+chapter_id+'/manifest')['pages']==2
 assert call('/JellyManga/chapters/'+chapter_id+'/pages/0')==png
 call('/JellyManga/chapters/'+chapter_id+'/pages/-1',expected=400)

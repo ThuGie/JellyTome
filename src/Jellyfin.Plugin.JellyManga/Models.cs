@@ -18,10 +18,10 @@ public sealed class Configuration : BasePluginConfiguration
 }
 
 public sealed record Series(string Id, string SourceId, string Url, string Title, string Description = "", string CoverUrl = "");
-public sealed record Chapter(string Id, string SeriesId, string Url, string Title, decimal Number, string Language = "en");
+public sealed record Chapter(string Id, string SeriesId, string Url, string Title, decimal Number, string Language = "en", DateTimeOffset? SourceDate = null);
 public sealed record PageImage(string Url, string Referer = "");
 public sealed record Subscription(Series Series, bool Monitoring, DateTimeOffset? LastChecked = null, string? Error = null);
-public sealed record DownloadJob(Chapter Chapter, string SourceId, string RequestedBy, string Status = "Queued", int Attempts = 0, string? Error = null, DateTimeOffset? RetryAt = null, string? RelativePath = null, int Pages = 0);
+public sealed record DownloadJob(Chapter Chapter, string SourceId, string RequestedBy, string Status = "Queued", int Attempts = 0, string? Error = null, DateTimeOffset? RetryAt = null, string? RelativePath = null, int Pages = 0, DateTimeOffset? CompletedAt = null);
 public sealed record ReadingProgress(string SeriesId, string ChapterId, int Page, bool Bookmarked, DateTimeOffset UpdatedAt);
 public sealed record DiagnosticEvent(string Id, DateTimeOffset At, string Kind, string Message);
 public sealed record SourceDefinition
@@ -32,6 +32,7 @@ public sealed record SourceDefinition
     public string Kind { get; init; } = "html";
     public bool Enabled { get; init; }
     public bool Removed { get; init; }
+    public bool Retired { get; init; }
     public int Priority { get; init; } = 100;
     public int MaxConcurrentDownloads { get; init; } = 1;
     public int DelayMilliseconds { get; init; } = 1500;

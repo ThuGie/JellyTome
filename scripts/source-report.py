@@ -4,6 +4,9 @@ root=pathlib.Path(__file__).resolve().parents[1];parser=argparse.ArgumentParser(
 def collect(check):
     old=checks.get(check['sourceId'])
     if old is None or check['checkedAt']>old['checkedAt']:checks[check['sourceId']]=check
+previous = root / 'docs/source-results.json'
+if previous.exists():
+    for check in json.loads(previous.read_text(encoding='utf8')): collect(check)
 for directory in [*(root/'artifacts').glob('source-probe*'), root/'artifacts/mangaplus-session-check']:
     database=directory/'probe.db'
     if database.exists():
@@ -16,11 +19,11 @@ catalog_path=root/'src/Jellyfin.Plugin.JellyManga/Sources/catalog.json';catalog=
 def passed(c):return all(c.get(stage) for stage in ['search','details','chapters','pages','download'])
 def clean(text):return str(text or '').replace('|','/').replace('\n',' ').replace('\r',' ')[:600]
 for source in catalog:
-    check=checks.get(source['id']);ok=check is not None and passed(check)
+    check=checks.get(source['id']);ok=check is not None and passed(check) and not source.get('retired')
     if ok:verified.append(source['name'])
-    if args.update_catalog:
+    if args.update_catalog and not source.get('retired'):
         source['enabled']=bool(source.get('enabled')) and ok
-        if ok:source['status']='Verified sample '+check['checkedAt'][:10]+' · '+check['title']
+        if ok:source['status']='Verified'
         elif check:source['status']='Experimental / failed live test: '+clean(check.get('error') or 'Full download not verified')[:180]
 lines=['# Live source status','',f"Generated {datetime.datetime.now(datetime.timezone.utc).isoformat()}. **{len(verified)} distinct download sources have verified samples. "+("The 30-source target is met." if len(verified)>=30 else "The 30-source target is incomplete.")+"**",'',
        'Verified sample downloads: '+(', '.join(verified) or 'None')+'.','',
@@ -28,9 +31,9 @@ lines=['# Live source status','',f"Generated {datetime.datetime.now(datetime.tim
        '| Website | Test query / representative title | Search | Details | Chapters | Pages | Full chapter | Checked (UTC) | Result |','|---|---|---|---|---|---|---|---|---|']
 for source in sorted(catalog,key=lambda s:s['name'].lower()):
     c=checks.get(source['id'])
-    if c:lines.append('| '+ ' | '.join([clean(source['name']),clean(c['query'])+' / '+clean(c.get('title')), *['Pass' if c.get(k) else 'No' for k in ['search','details','chapters','pages','download']],clean(c['checkedAt']),clean(c.get('error') or ('Verified sample' if passed(c) else 'Not fully verified'))])+' |')
+    if c:lines.append('| '+ ' | '.join([clean(source['name']),clean(c['query'])+' / '+clean(c.get('title')), *['Pass' if c.get(k) else 'No' for k in ['search','details','chapters','pages','download']],clean(c['checkedAt']),clean(source['status'] if source.get('retired') else c.get('error') or ('Verified sample' if passed(c) else 'Not fully verified'))])+' |')
     else:lines.append('| '+clean(source['name'])+' | — | — | — | — | — | No | — | '+clean(source.get('status','Candidate; not tested'))+' |')
-lines += ['', '## Limitations', '', '- A site can change or become unavailable after a passing sample. Failed sites remain disabled by default.', '- Mixed sources with unrelated search recommendations are filtered by title terms before displaying results.', '- Some candidate sites returned HTTP 403/522, changed domains, or need specialized adapters. These are failures or candidates, not supported downloads.', '- MANGA Plus search/details/chapters work with the public anonymous session header; protected chapter images remain unsupported. No personal account was used.', '- Anime-Planet remains a discovery/partner-reading investigation and is not a downloadable content adapter.', '- WEBTOON extraction needs additional handling for unavailable/age-gated/otherwise empty sample chapters. It is not claimed as verified.', '- Tests are network/location/time dependent; the plugin reports source errors rather than bypassing challenges.']
+lines += ['', '## Limitations', '', '- A site can change or become unavailable after a passing sample. Retired bundled entries are omitted from the Sources list and disabled. Administrator-defined custom rules can still be managed separately.', '- Mixed sources with unrelated search recommendations are filtered by title terms before displaying results.', '- Some candidate sites returned HTTP 403/522, changed domains, or need specialized adapters. These are failures or candidates, not supported downloads.', '- MANGA Plus search/details/chapters work with the public anonymous session header; protected chapter images remain unsupported. No personal account was used.', '- Anime-Planet remains a discovery/partner-reading investigation and is not a downloadable content adapter.', '- WEBTOON extraction needs additional handling for unavailable/age-gated/otherwise empty sample chapters. It is not claimed as verified.', '- Tests are network/location/time dependent; the plugin reports source errors rather than bypassing challenges.']
 (root/'docs/source-status.md').write_text('\n'.join(lines)+'\n',encoding='utf8')
 (root/'docs/source-results.json').write_text(json.dumps(sorted(checks.values(),key=lambda c:c['sourceId']),indent=2)+'\n',encoding='utf8')
 if args.update_catalog:catalog_path.write_text(json.dumps(catalog,indent=2)+'\n',encoding='utf8')

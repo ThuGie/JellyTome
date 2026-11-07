@@ -47,7 +47,8 @@ public sealed class MangaDexSource(SourceDefinition definition, ISourceHttp http
                 if (a.TryGetProperty("pages", out var pages) && pages.GetInt32() == 0) continue;
                 var id = item.GetProperty("id").GetString()!; var number = a.GetProperty("chapter").GetString() ?? "0";
                 decimal.TryParse(number, NumberStyles.Number, CultureInfo.InvariantCulture, out var n);
-                output.Add(new(Identity.For(series.Id, id), series.Id, "https://mangadex.org/chapter/" + id, "Chapter " + number + " " + (a.GetProperty("title").GetString() ?? ""), n));
+                var published = DateTimeOffset.TryParse(Extraction.Value(a, "publishAt"), out var date) ? date : (DateTimeOffset?)null;
+                output.Add(new(Identity.For(series.Id, id), series.Id, "https://mangadex.org/chapter/" + id, "Chapter " + number + " " + (a.GetProperty("title").GetString() ?? ""), n, SourceDate: published));
             }
             if (offset + 500 >= json.RootElement.GetProperty("total").GetInt32()) break;
             if (offset == 9500) throw new InvalidDataException("MangaDex feed exceeds the supported 10,000-entry pagination window.");

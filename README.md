@@ -4,7 +4,7 @@
 
 A Jellyfin server plugin for manga discovery, immediate requests, CBZ downloads, release monitoring, and reading inside Jellyfin. Everything runs in the Jellyfin process. No companion server, Docker container, browser automation service, or external database is required.
 
-**0.1 preview:** the plugin and its browser interface work, but the requested target of **30 verified download websites has not been reached**. The catalog distinguishes working adapters, experimental rules, and sites needing a specialized adapter. See [live source results](docs/source-status.md). Candidate entries do not count as supported sources.
+**0.1 preview:** the Sources list includes bundled sites with verified full chapter downloads and your custom sources. See the [live source results](docs/source-status.md) for the audit.
 
 ## Install
 

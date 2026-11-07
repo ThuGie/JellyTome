@@ -102,6 +102,7 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
         var chapters = (await adapter.Chapters(details, ct))
             .Where(chapter => chapter.Language == "en")
             .OrderByDescending(chapter => chapter.Number)
+            .ThenByDescending(chapter => chapter.SourceDate)
             .ToArray();
         var firstNumberedChapter = chapters.LastOrDefault(chapter => chapter.Number > 0);
         return Ok(new
@@ -111,6 +112,7 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
             firstChapterNumber = firstNumberedChapter?.Number,
             lastChapterNumber = chapters.FirstOrDefault(chapter => chapter.Number > 0)?.Number,
             latestChapter = chapters.FirstOrDefault()?.Title,
+            latestChapterDate = chapters.FirstOrDefault()?.SourceDate,
             missingStart = firstNumberedChapter?.Number > 1
         });
     }
@@ -122,8 +124,45 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
     [HttpGet("library")]
     public ActionResult Library()
     {
-        Access(); var jobs = store.All<DownloadJob>("job"); var progress = store.All<ReadingProgress>("progress:" + UserId().ToString("N"));
-        return Ok(store.All<Subscription>("series").Select(s => new { s.Series, s.Monitoring, s.LastChecked, s.Error, downloaded = jobs.Count(j => j.Chapter.SeriesId == s.Series.Id && j.Status == "Complete"), progress = progress.Where(p => p.SeriesId == s.Series.Id).OrderByDescending(p => p.UpdatedAt).FirstOrDefault() }));
+        Access();
+        var completed = store.All<DownloadJob>("job").Where(job => job.Status == "Complete").ToLookup(job => job.Chapter.SeriesId);
+        var progress = store.All<ReadingProgress>("progress:" + UserId().ToString("N")).ToLookup(entry => entry.SeriesId);
+        return Ok(store.All<Subscription>("series").Select(subscription =>
+        {
+            var jobs = completed[subscription.Series.Id];
+            var latest = jobs.Select(job => new { Job = job, Date = LibraryUpdateDate(job) })
+                .Where(entry => entry.Date != null)
+                .OrderByDescending(entry => entry.Date)
+                .ThenByDescending(entry => entry.Job.Chapter.Number)
+                .FirstOrDefault();
+            return new
+            {
+                subscription.Series,
+                subscription.Monitoring,
+                subscription.LastChecked,
+                subscription.Error,
+                downloaded = jobs.Count(),
+                progress = progress[subscription.Series.Id].MaxBy(entry => entry.UpdatedAt),
+                lastUpdatedAt = latest?.Date,
+                latestUpdatedChapter = latest?.Job.Chapter,
+                archiveDateOnly = latest != null && latest.Job.CompletedAt == null
+            };
+        }).ToArray());
+    }
+
+    private DateTimeOffset? LibraryUpdateDate(DownloadJob job)
+    {
+        if (job.CompletedAt != null) return job.CompletedAt;
+        if (job.RelativePath == null) return null;
+        try
+        {
+            var archive = new FileInfo(storage.Absolute(job.RelativePath));
+            return archive.Exists ? new DateTimeOffset(archive.LastWriteTimeUtc) : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
     }
     [HttpGet("covers/{id}")]
     public async Task<ActionResult> Cover(string id, CancellationToken ct)
@@ -167,7 +206,7 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
     {
         var config = Plugin.Instance.Configuration; string? storageError = null; long? used = null;
         try { used = storage.Used(); } catch (Exception ex) { storageError = ex.Message; }
-        return Ok(new { injection = WebTransformation.Registered, config.Paused, usedBytes = used, storageError, downloads = store.All<DownloadJob>("job").GroupBy(j => j.Status).ToDictionary(g => g.Key, g => g.Count()), monitored = store.All<Subscription>("series"), checks = store.All<SourceCheck>("check"), libraries = libraries.GetVirtualFolders().Select(v => new { v.Name, v.ItemId, v.Locations }), users = ListUsers().Select(u => new { u.Id, u.Username }) });
+        return Ok(new { injection = WebTransformation.Registered, config.Paused, usedBytes = used, storageError, downloads = store.All<DownloadJob>("job").GroupBy(j => j.Status).ToDictionary(g => g.Key, g => g.Count()), verifiedSources = sources.All().Count(source => !source.Retired && !source.Removed && source.Status.StartsWith("Verified", StringComparison.Ordinal)), monitored = store.All<Subscription>("series"), checks = store.All<SourceCheck>("check"), libraries = libraries.GetVirtualFolders().Select(v => new { v.Name, v.ItemId, v.Locations }), users = ListUsers().Select(u => new { u.Id, u.Username }) });
     }
     [HttpGet("admin/settings"), Authorize(Policy = "RequiresElevation")]
     public ActionResult Settings() => Ok(Plugin.Instance.Configuration);
@@ -191,7 +230,7 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
         Plugin.Instance.UpdateConfiguration(config); store.Event("Settings", "Administrator updated manga settings."); return NoContent();
     }
     [HttpGet("admin/sources"), Authorize(Policy = "RequiresElevation")]
-    public ActionResult AdminSources() => Ok(sources.All());
+    public ActionResult AdminSources() => Ok(sources.All().Where(source => !source.Retired));
     [HttpPut("admin/sources/{id}"), Authorize(Policy = "RequiresElevation")]
     public ActionResult Source(string id, [FromBody] SourceDefinition source) { if (id != source.Id) throw new ArgumentException("Source identifier mismatch."); sources.Save(source); return NoContent(); }
     [HttpPut("admin/sources/{id}/downloads"), Authorize(Policy = "RequiresElevation")]

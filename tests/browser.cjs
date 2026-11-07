@@ -37,7 +37,7 @@ const server = http.createServer(async (req, res) => {
     else if (route === 'search/' + series.id + '/details') result = { chapterCount: 43, firstChapterNumber: 22, lastChapterNumber: 64, missingStart: true, latestChapter: 'Chapter 64', description: 'Detailed synopsis' };
     else if (route === 'search') result = { results: [series], errors: [], downloadedCounts: { [series.id]: 1 } };
     else if (route === 'requests') { requested++; result = { series, monitoring: true }; }
-    else if (route === 'library') result = [{ series, monitoring: true, downloaded: 1, progress: progress[0] }];
+    else if (route === 'library') result = [{ series, monitoring: true, downloaded: 1, progress: progress[0], lastUpdatedAt: '2026-11-06T12:00:00Z', latestUpdatedChapter: chapter }];
     else if (route.endsWith('/chapters')) result = [job];
     else if (route.endsWith('/manifest')) result = { chapter, pages: 12 };
     else if (route === 'downloads') result = [job];
@@ -68,6 +68,10 @@ const server = http.createServer(async (req, res) => {
             await page.getByRole('button', { name: 'My library', exact: true }).click();
             await page.waitForFunction(() => document.querySelector('.jm-cover img')?.naturalWidth > 0);
             await page.screenshot({ path: path.join(artifacts, name + '-library.png') });
+            await page.getByRole('combobox', { name: 'Sort library' }).selectOption('title');
+            await page.getByRole('button', { name: 'Recent updates', exact: true }).click();
+            await page.getByRole('button', { name: 'Read latest addition', exact: true }).waitFor();
+            await page.locator('time[datetime="2026-11-06T12:00:00Z"]').waitFor(); assertions += 2;
             await page.getByRole('button', { name: 'Discover', exact: true }).click(); await page.getByRole('textbox', { name: 'Search manga', exact: true }).fill('Lantern'); await page.getByRole('button', { name: 'Search', exact: true }).click(); await page.getByRole('button', { name: 'Request & monitor' }).click();
             await page.getByRole('status').filter({ hasText: 'requested' }).waitFor(); assertions++;
             await page.getByText('1 chapter downloaded', {exact:true}).waitFor();

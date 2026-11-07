@@ -264,7 +264,8 @@ public sealed class QueueService(Store store, SourceRegistry sources, ChapterDow
         {
             // Yield before work to register cancellation before any HTTP completes.
             await Task.Yield(); var result = await downloader.Download(job, ct);
-            if (store.Finish(job with { Status = "Complete", RelativePath = result.Path, Pages = result.Pages })) store.Event("Downloaded", job.Chapter.Title + " · " + job.SourceId + " · " + result.Pages + " pages");
+            if (store.Finish(job with { Status = "Complete", RelativePath = result.Path, Pages = result.Pages, CompletedAt = DateTimeOffset.UtcNow }))
+                store.Event("Downloaded", job.Chapter.Title + " · " + job.SourceId + " · " + result.Pages + " pages");
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { store.Finish(job with { Status = "Queued", Error = "Interrupted; will retry." }); }
         catch (Exception ex)

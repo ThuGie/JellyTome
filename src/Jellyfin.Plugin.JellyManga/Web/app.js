@@ -4,6 +4,7 @@
     if (window.JellyManga) return;
     let root, main, session, current = 'library', poll, reader, generation = 0, pageAbort, pageObserver;
     let progressWrites = Promise.resolve();
+    let librarySort = 'updated';
     const blobUrls = new Map();
     const coverUrls = new Set(); let coverObserver;
     const element = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -53,7 +54,7 @@
         header.append(brand, nav, button('Back to Jellyfin', () => close(), 'jm-close')); main = element('main', 'jm-main'); root.append(header, main); (options.host || document.body).append(root); if (options.host) header.querySelector('.jm-close').hidden = true;
         try {
             session = await api('session');
-            for (const [id, label] of (options.host ? [] : [['discover', 'Discover'], ['library', 'My library'], ['continue', 'Continue reading'], ['downloads', 'Downloads']])) {
+            for (const [id, label] of (options.host ? [] : [['discover', 'Discover'], ['library', 'My library'], ['recent', 'Recent updates'], ['continue', 'Continue reading'], ['downloads', 'Downloads']])) {
                 const b = button(label, () => navigate(id)); b.dataset.tab = id; nav.append(b);
             }
             if (!options.host) history.pushState({ ...(history.state || {}), jellyManga: true }, '', location.href);
@@ -67,7 +68,7 @@
         const version = generation;
         try {
             if (tab === 'discover') await discover(version);
-            else if (tab === 'library' || tab === 'continue') await library(tab === 'continue', version);
+            else if (['library', 'recent', 'continue'].includes(tab)) await library(tab, version);
             else if (tab === 'downloads') await downloads(version);
             else if (tab === 'admin' && session.admin) await admin('Overview', version);
         } catch (e) { if (version === generation) message(e.message, true); }
@@ -106,6 +107,8 @@
                         chapterInfo.textContent = info.chapterCount + ' English chapter listings' + (info.latestChapter ? ' · Latest: ' + info.latestChapter : '');
                         if (info.firstChapterNumber != null && info.lastChapterNumber != null)
                             chapterInfo.textContent += ' · Listed range: ' + info.firstChapterNumber + '–' + info.lastChapterNumber;
+                        if (info.latestChapterDate)
+                            chapterInfo.textContent += ' · Source date: ' + new Date(info.latestChapterDate).toLocaleDateString();
                         if (info.missingStart)
                             card.append(element('p', 'jm-error', 'Missing the start · first numbered chapter is ' + info.firstChapterNumber));
                         if (info.description) card.querySelector('p').textContent = info.description;
@@ -118,23 +121,73 @@
             } catch (ex) { if (version === generation) message(ex.message, true); } finally { submit.disabled = false; }
         };
     }
-    async function library(continuing, version) {
-        heading(continuing ? 'Pick up where you left off.' : 'Your manga, always ready.', continuing ? 'Your progress follows your Jellyfin account across devices.' : 'Downloaded chapters and monitored series from all your sources.');
-        let data = await api('library'); if (version !== generation) return;
-        if (continuing) data = data.filter(x => x.progress).sort((a, b) => b.progress.updatedAt.localeCompare(a.progress.updatedAt));
-        if (!data.length) { empty(continuing ? 'Start reading a chapter to see it here.' : 'Your library is waiting. Discover a series to start downloading.'); return; }
-        const grid = element('div', 'jm-grid'); main.append(grid);
+    async function library(tab, version) {
+        const continuing = tab === 'continue', recent = tab === 'recent';
+        if (continuing) heading('Pick up where you left off.', 'Your progress follows your Jellyfin account across devices.');
+        else if (recent) heading('Recent updates', 'See the latest additions to your manga library.');
+        else heading('Your manga, always ready.', 'Downloaded chapters and monitored series from all your sources.');
+        let data = await api('library');
+        if (version !== generation) return;
+        if (continuing) data = data.filter(item => item.progress).sort((a, b) => b.progress.updatedAt.localeCompare(a.progress.updatedAt));
+        if (recent) data = data.filter(item => item.lastUpdatedAt);
+        if (!data.length) {
+            empty(continuing ? 'Start reading a chapter to see it here.' : recent ? 'Downloaded updates will appear here.' : 'Your library is waiting. Discover a series to start downloading.');
+            return;
+        }
+        const sort = element('select');
+        if (!continuing && !recent) {
+            const label = element('label', 'jm-actions', 'Sort library');
+            for (const [value, title] of [['updated', 'Recently updated'], ['oldest', 'Oldest update'], ['title', 'Title A–Z'], ['title-desc', 'Title Z–A'], ['chapters', 'Most downloaded chapters']])
+                sort.append(new Option(title, value));
+            sort.value = librarySort;
+            label.append(sort);
+            main.append(label);
+        }
+        const grid = element('div', 'jm-grid');
+        main.append(grid);
+        const cards = new Map();
         for (const item of data) {
-            const card = element('article', 'jm-card'); card.append(cover(item.series), element('div', 'jm-badge', item.series.sourceId), element('h3', '', item.series.title), element('p', '', `${item.downloaded} chapters downloaded · ${item.monitoring ? 'Monitoring' : 'Not monitoring'}`));
-            const actions = element('div', 'jm-actions'); actions.append(button(item.progress ? 'Continue reading' : 'View chapters', () => item.progress ? read(item.progress.chapterId, item.progress.page, item.progress.bookmarked) : chapterList(item.series)));
-            if (item.progress) actions.append(button('Chapters', () => chapterList(item.series)));
+            const card = element('article', 'jm-card');
+            card.append(cover(item.series), element('div', 'jm-badge', item.series.sourceId), element('h3', '', item.series.title), element('p', '', item.downloaded + ' chapters downloaded · ' + (item.monitoring ? 'Monitoring' : 'Not monitoring')));
+            if (item.lastUpdatedAt) {
+                const date = element('time', 'jm-muted', new Date(item.lastUpdatedAt).toLocaleString());
+                date.dateTime = item.lastUpdatedAt;
+                const update = element('p', '', item.archiveDateOnly ? 'Archive updated ' : 'Last downloaded ');
+                update.append(date);
+                if (item.latestUpdatedChapter?.title) update.append(' · ' + item.latestUpdatedChapter.title);
+                card.append(update);
+            }
+            const actions = element('div', 'jm-actions');
+            if (recent && item.latestUpdatedChapter)
+                actions.append(button('Read latest addition', () => read(item.latestUpdatedChapter.id)));
+            if (item.progress)
+                actions.append(button('Continue reading', () => read(item.progress.chapterId, item.progress.page, item.progress.bookmarked)));
+            actions.append(button(item.progress ? 'Chapters' : 'View chapters', () => chapterList(item.series)));
             if (session.admin) actions.append(button('Stop and delete', async () => {
                 if (!window.confirm('Stop monitoring and delete downloaded chapters and reading progress for “' + item.series.title + '” from the shared library?')) return;
                 await api('library/' + encodeURIComponent(item.series.id), 'DELETE');
-                await navigate(continuing ? 'continue' : 'library');
+                await navigate(tab);
             }));
-            card.append(actions); grid.append(card);
+            card.append(actions);
+            cards.set(item.series.id, card);
         }
+        function render() {
+            const ordered = [...data];
+            if (!continuing) ordered.sort((a, b) => {
+                const title = a.series.title.localeCompare(b.series.title);
+                const order = recent ? 'updated' : librarySort;
+                if (order === 'title') return title;
+                if (order === 'title-desc') return -title;
+                if (order === 'chapters') return b.downloaded - a.downloaded || title;
+                if (!a.lastUpdatedAt || !b.lastUpdatedAt)
+                    return Number(Boolean(b.lastUpdatedAt)) - Number(Boolean(a.lastUpdatedAt)) || title;
+                const byDate = Date.parse(a.lastUpdatedAt) - Date.parse(b.lastUpdatedAt);
+                return (order === 'oldest' ? byDate : -byDate) || title;
+            });
+            grid.replaceChildren(...ordered.map(item => cards.get(item.series.id)));
+        }
+        sort.onchange = () => { librarySort = sort.value; render(); };
+        render();
     }
     async function chapterList(series) {
         generation++; const version = generation; main.replaceChildren(); heading(series.title, series.description); main.append(button('← Library', () => navigate('library')));
@@ -160,7 +213,7 @@
         const overview = await api('admin/overview'); if (version !== generation) return;
         if (section === 'Overview') {
             const stats = element('div', 'jm-stats');
-            for (const [label, value] of [['Downloaded', overview.downloads.Complete || 0], ['Queued', overview.downloads.Queued || 0], ['Failed', overview.downloads.Failed || 0], ['Verified sources', overview.checks.filter(c => c.download && c.search && c.details && c.chapters && c.pages).length]]) { const stat = element('div', 'jm-stat'); stat.append(element('b', '', String(value)), element('span', 'jm-muted', label)); stats.append(stat); }
+            for (const [label, value] of [['Downloaded', overview.downloads.Complete || 0], ['Queued', overview.downloads.Queued || 0], ['Failed', overview.downloads.Failed || 0], ['Verified sources', overview.verifiedSources ?? 0]]) { const stat = element('div', 'jm-stat'); stat.append(element('b', '', String(value)), element('span', 'jm-muted', label)); stats.append(stat); }
             panel.append(stats, element('p', '', overview.injection ? 'File Transformation: registered' : 'File Transformation: not registered. Install the dependency and restart Jellyfin.'), element('p', '', 'Storage used: ' + (overview.usedBytes == null ? 'Not configured' : (overview.usedBytes / 1073741824).toFixed(2) + ' GiB')));
             if (overview.storageError) panel.append(element('p', 'jm-error', overview.storageError));
             for (const check of overview.checks) panel.append(element('p', 'jm-muted', `${check.sourceId}: ${check.error || (check.download ? 'Complete chapter checked' : 'Download not tested')} · ${new Date(check.checkedAt).toLocaleString()}`));
@@ -222,7 +275,7 @@
         const sources = await api('admin/sources'); if (version !== generation) return;
         const actions = element('div', 'jm-actions'); actions.append(button('Add custom source', () => editSource({ id: '', name: '', baseUrl: 'https://example.org', kind: 'html', enabled: false, delayMilliseconds: 1500, maxPagination: 5, allowedHosts: [], searchPath: '/?s={query}', searchItems: '.result', searchLink: 'a', searchCover: 'img', titleSelector: 'h1', descriptionSelector: '.description', chaptersPath: '{series}', chapterItems: '.chapters a', chapterLink: '', pagesSelector: '.reader img', imageAttribute: 'src' })), button('Export definitions', () => { const blob = new Blob([JSON.stringify(sources, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = element('a'); a.href = url; a.download = 'jellymanga-sources.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }), button('Import definitions', () => { const input = element('input'); input.type = 'file'; input.accept = '.json'; input.onchange = async () => { try { if (!input.files[0] || input.files[0].size > 1024 * 1024) throw new Error('Choose a JSON file smaller than 1 MiB.'); await api('admin/sources/import', 'POST', JSON.parse(await input.files[0].text())); await admin('Sources'); } catch (e) { message(e.message, true); } }; input.click(); })); panel.append(actions);
         for (const source of sources) {
-            const row = element('div', 'jm-row'); const info = element('div'); info.append(element('strong', '', source.name), element('div', 'jm-muted', source.status), element('small', '', source.removed ? 'Removed · library retained' : source.enabled ? 'Enabled' : 'Disabled')); const controls = element('div', 'jm-actions');
+            const row = element('div', 'jm-row'); const info = element('div'); info.append(element('strong', '', source.name), element('div', 'jm-muted', source.status?.startsWith('Verified') ? 'Verified' : source.status?.startsWith('Failed') ? 'Verification failed' : source.status), element('small', '', source.removed ? 'Removed · library retained' : source.enabled ? 'Enabled' : 'Disabled')); const controls = element('div', 'jm-actions');
             const limitForm = element('form', 'jm-form'); const limit = field(limitForm, 'Max concurrent downloads · ' + source.name, source.maxConcurrentDownloads ?? 1, 'number'); limit.min = '1'; limit.max = '8'; limit.step = '1';
             limitForm.append(button('Save download limit', () => limitForm.requestSubmit()));
             limitForm.onsubmit = async e => { e.preventDefault(); try { await api('admin/sources/' + encodeURIComponent(source.id) + '/downloads', 'PUT', { maxConcurrentDownloads: Number(limit.value) }); source.maxConcurrentDownloads = Number(limit.value); message('Website download limit saved. The global limit and request delay still apply.'); } catch (ex) { message(ex.message, true); } };
@@ -238,7 +291,7 @@
     function testSource(source) {
         main.replaceChildren(); heading('Test ' + source.name, 'Test search, details, chapter extraction, and optionally a complete chapter download. Test archives are deleted afterward.'); main.append(button('← Sources', () => admin('Sources')));
         const form = element('form', 'jm-panel'); const query = field(form, 'Search query', 'One Piece'); const url = field(form, 'Optional exact series URL', ''); const download = field(form, 'Download and validate a complete chapter (requires configured storage)', false, 'checkbox'); const submit = button('Run test', () => form.requestSubmit(), 'jm-primary'); form.append(submit); main.append(form);
-        form.onsubmit = async e => { e.preventDefault(); submit.disabled = true; message('Testing source. A full chapter can take several minutes.'); try { const result = await api('admin/sources/' + source.id + '/test', 'POST', { query: query.value, seriesUrl: url.value || null, download: download.checked }); message(result.error || (result.download ? 'Full chapter download verified.' : 'Extraction checked; download not verified.'), !!result.error); form.append(element('pre', '', JSON.stringify(result, null, 2))); } catch (ex) { message(ex.message, true); } finally { submit.disabled = false; } };
+        form.onsubmit = async e => { e.preventDefault(); submit.disabled = true; message('Testing source. A full chapter can take several minutes.'); try { const result = await api('admin/sources/' + source.id + '/test', 'POST', { query: query.value, seriesUrl: url.value || null, download: download.checked }); message(result.error || (result.download ? 'Source verified.' : 'Extraction checked. Run a full download test to verify.'), !!result.error); } catch (ex) { message(ex.message, true); } finally { submit.disabled = false; } };
     }
     async function imageFor(chapter, page, signal) {
         const key = chapter + ':' + page; if (blobUrls.has(key)) return blobUrls.get(key);
