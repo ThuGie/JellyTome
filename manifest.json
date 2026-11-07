@@ -9,6 +9,15 @@
     "imageUrl": "https://raw.githubusercontent.com/ThuGie/JellyTome/main/thumb.png",
     "versions": [
       {
+        "version": "0.1.0.10",
+        "changelog": "- Show the listed chapter range and flag sources whose numbered chapters start after chapter 1.\n- Let administrators stop monitoring and remove a manga, its queued downloads, archives, and reading progress from the shared library.",
+        "targetAbi": "10.11.3.0",
+        "sourceUrl": "https://github.com/ThuGie/JellyTome/releases/download/v0.1.0.10/JellyTome_0.1.0.10.zip",
+        "checksum": "5fabd8a56ca4ea10188d831c8d365d59",
+        "timestamp": "2026-11-07T11:06:47.175172+00:00",
+        "dependencies": []
+      },
+      {
         "version": "0.1.0.9",
         "changelog": "- Show the downloaded chapter count on matching search results.\n- Add on-demand chapter details with the source\u2019s English chapter count, latest listed chapter, and synopsis.",
         "targetAbi": "10.11.3.0",
