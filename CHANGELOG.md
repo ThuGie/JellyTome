@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0.14
+
+- Add verified Madara sources LHTranslation, MangaPark.tv, ManhwaReads, Ruby Comics, and Yaksha Comics.
+- Let administrators redownload a completed chapter. Keep its archive until the replacement is ready.
+- Show progress by series in the library and live Downloads view, with a direct link after requesting a manga.
+
 ## 0.1.0.13
 
 - Start parallel chapter downloads in numeric order within the configured limits.

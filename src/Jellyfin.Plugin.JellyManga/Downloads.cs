@@ -47,7 +47,8 @@ public sealed class LibraryStorage(Func<Configuration> config)
         try
         {
             var destination = Absolute(relative); var max = config().StorageLimitBytes;
-            if (max > 0 && Used() > max) throw new IOException("Configured manga storage limit reached.");
+            var replacedBytes = File.Exists(destination) ? new FileInfo(destination).Length : 0;
+            if (max > 0 && Used() - replacedBytes > max) throw new IOException("Configured manga storage limit reached.");
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!); File.Move(temporary, destination, true);
         }
         finally { _commit.Release(); }

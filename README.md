@@ -6,6 +6,8 @@ A Jellyfin server plugin for manga discovery, immediate requests, CBZ downloads,
 
 **0.1 preview:** the Sources list includes bundled sites with verified full chapter downloads and your custom sources. See the [live source results](docs/source-status.md) for the audit.
 
+Run `python tools/check-madara-sites.py` to screen the public English Madara index. The JSON report records which domains expose a public catalog. A complete chapter test is required to verify download support.
+
 ## Install
 
 Use **0.1.0.1 or newer**. The original 0.1.0.0 release omitted AngleSharp from Jellyfin's assembly allowlist and could appear as NotSupported. Install the newer catalog version and restart Jellyfin; do not delete manga files or the plugin database.

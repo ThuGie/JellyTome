@@ -230,6 +230,20 @@
     "pageCount": 85
   },
   {
+    "sourceId": "kaliscanorg",
+    "checkedAt": "2026-11-07T16:50:59.9139625+00:00",
+    "query": "Vagabond",
+    "title": "Vagabond",
+    "search": true,
+    "details": true,
+    "chapters": true,
+    "pages": false,
+    "download": false,
+    "error": "Host not in source allowlist: www.mangaread.org",
+    "sampleChapterUrl": "https://kaliscan.org/manga/vagabond/chapter-318/",
+    "pageCount": 0
+  },
+  {
     "sourceId": "kensscan",
     "checkedAt": "2026-11-06T17:32:55.543262+00:00",
     "query": "Maou No Musume Wa Ikigitanai",
@@ -298,6 +312,20 @@
     "pageCount": 19
   },
   {
+    "sourceId": "lhtranslation",
+    "checkedAt": "2026-11-07T16:51:56.7766555+00:00",
+    "query": "Kuro no Shoukanshi",
+    "title": "Kuro no Shoukanshi",
+    "search": true,
+    "details": true,
+    "chapters": true,
+    "pages": true,
+    "download": true,
+    "error": null,
+    "sampleChapterUrl": "https://lhtranslation.net/manga/kuro-no-shoukanshi/chapter-1/",
+    "pageCount": 37
+  },
+  {
     "sourceId": "likemanga",
     "checkedAt": "2026-11-05T20:36:50.9736295+00:00",
     "query": "One Piece",
@@ -336,6 +364,20 @@
     "error": null,
     "sampleChapterUrl": "https://lovesjane.site/manga/miyeon/chapter-36/",
     "pageCount": 4
+  },
+  {
+    "sourceId": "madaradex",
+    "checkedAt": "2026-11-07T16:50:21.8361918+00:00",
+    "query": "One Piece",
+    "title": null,
+    "search": false,
+    "details": false,
+    "chapters": false,
+    "pages": false,
+    "download": false,
+    "error": "Search returned no titles.",
+    "sampleChapterUrl": null,
+    "pageCount": 0
   },
   {
     "sourceId": "madarascans",
@@ -492,6 +534,34 @@
     "error": "Response status code does not indicate success: 522 (<none>).",
     "sampleChapterUrl": null,
     "pageCount": 0
+  },
+  {
+    "sourceId": "mangaowlio",
+    "checkedAt": "2026-11-07T16:50:22.1285298+00:00",
+    "query": "One Piece",
+    "title": null,
+    "search": false,
+    "details": false,
+    "chapters": false,
+    "pages": false,
+    "download": false,
+    "error": "Search returned no titles.",
+    "sampleChapterUrl": null,
+    "pageCount": 0
+  },
+  {
+    "sourceId": "mangaparktv",
+    "checkedAt": "2026-11-07T16:51:13.19754+00:00",
+    "query": "Desharow Mermaid",
+    "title": "Desharow Mermaid",
+    "search": true,
+    "details": true,
+    "chapters": true,
+    "pages": true,
+    "download": true,
+    "error": null,
+    "sampleChapterUrl": "https://mangapark.tv/manhwa/desharow-mermaid/desharow-mermaid-chap-1/",
+    "pageCount": 8
   },
   {
     "sourceId": "mangapill",
@@ -682,6 +752,20 @@
     "error": null
   },
   {
+    "sourceId": "manhwareads",
+    "checkedAt": "2026-11-07T16:51:43.013243+00:00",
+    "query": "Steel Ball Run",
+    "title": "Steel Ball Run",
+    "search": true,
+    "details": true,
+    "chapters": true,
+    "pages": true,
+    "download": true,
+    "error": null,
+    "sampleChapterUrl": "https://manhwareads.com/manga/steel-ball-run/01/vol-01-chapter-001-the-steel-ball-run-press-conference-official-color-scans/",
+    "pageCount": 27
+  },
+  {
     "sourceId": "manhwatoon",
     "checkedAt": "2026-11-07T16:27:32.4231715+00:00",
     "query": "Solo Leveling",
@@ -722,6 +806,20 @@
     "pageCount": 15
   },
   {
+    "sourceId": "rubycomics",
+    "checkedAt": "2026-11-07T16:54:04.8836339+00:00",
+    "query": "Love by Mistake",
+    "title": "Love by Mistake",
+    "search": true,
+    "details": true,
+    "chapters": true,
+    "pages": true,
+    "download": true,
+    "error": null,
+    "sampleChapterUrl": "https://rubycomics.net/manga/love-by-mistake/chapter-1/",
+    "pageCount": 122
+  },
+  {
     "sourceId": "s2manga",
     "checkedAt": "2026-11-06T17:29:28.2356983+00:00",
     "query": "For the Young Villain\u2019s Happy Ending",
@@ -736,16 +834,60 @@
     "pageCount": 17
   },
   {
-    "sourceId": "topmanhua",
-    "checkedAt": "2026-11-05T20:36:58.8900685+00:00",
-    "query": "One Piece",
+    "sourceId": "sleepytranslations",
+    "checkedAt": "2026-11-07T16:51:05.4727304+00:00",
+    "query": "Little One Tears the Villain",
+    "title": "Little One Tears the Villain\u2019s Script",
+    "search": true,
+    "details": true,
+    "chapters": true,
+    "pages": false,
+    "download": false,
+    "error": "Invalid page count; source extraction failed.",
+    "sampleChapterUrl": "https://sleepytranslations.com/series/little-one-tears-the-villains-script/chapter-1/",
+    "pageCount": 0
+  },
+  {
+    "sourceId": "toonily",
+    "checkedAt": "2026-11-07T16:50:26.2206852+00:00",
+    "query": "The Beginning After the End",
     "title": null,
     "search": false,
     "details": false,
     "chapters": false,
     "pages": false,
     "download": false,
-    "error": "Host not in source allowlist: araplhn.org"
+    "error": "Response status code does not indicate success: 403 (Forbidden).",
+    "sampleChapterUrl": null,
+    "pageCount": 0
+  },
+  {
+    "sourceId": "topmanhua",
+    "checkedAt": "2026-11-07T16:54:32.3703189+00:00",
+    "query": "Shining Nana Nana",
+    "title": "Shining Nana Nana",
+    "search": true,
+    "details": true,
+    "chapters": true,
+    "pages": true,
+    "download": false,
+    "error": "Response status code does not indicate success: 403 (Forbidden).",
+    "sampleChapterUrl": "https://mangatop.org/series/shining-nana-nana/chapter-68/",
+    "pageCount": 64
+  },
+  {
+    "sourceId": "topmanhuanet",
+    "checkedAt": "2026-11-07T16:51:55.1378558+00:00",
+    "query": "The Return of the Crazy Demon",
+    "title": "The Return of the Crazy Demon",
+    "search": true,
+    "details": true,
+    "chapters": true,
+    "pages": true,
+    "download": false,
+    "error": "Response status code does not indicate success: 526 (<none>).",
+    "sampleChapterUrl": "https://topmanhua.net/manga/the-return-of-the-crazy-demon/chapter-1/",
+    "pageCount": 7
   },
   {
     "sourceId": "webtoon",
@@ -772,6 +914,34 @@
     "pages": true,
     "download": true,
     "error": null
+  },
+  {
+    "sourceId": "yakshacomics",
+    "checkedAt": "2026-11-07T16:51:34.4461303+00:00",
+    "query": "The Mech Mechanic",
+    "title": "The Mech Mechanic",
+    "search": true,
+    "details": true,
+    "chapters": true,
+    "pages": true,
+    "download": true,
+    "error": null,
+    "sampleChapterUrl": "https://yakshacomics.com/manga/the-mech-mechanic/chapter-1/",
+    "pageCount": 10
+  },
+  {
+    "sourceId": "zazamanga",
+    "checkedAt": "2026-11-07T16:50:27.3558244+00:00",
+    "query": "Flame Magician",
+    "title": null,
+    "search": false,
+    "details": false,
+    "chapters": false,
+    "pages": false,
+    "download": false,
+    "error": "Search returned no titles.",
+    "sampleChapterUrl": null,
+    "pageCount": 0
   },
   {
     "sourceId": "zinmanga",

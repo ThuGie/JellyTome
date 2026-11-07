@@ -1,8 +1,8 @@
 # Live source status
 
-Generated 2026-11-07T16:34:32.438031+00:00. **34 distinct download sources have verified samples. The 30-source target is met.**
+Generated 2026-11-07T16:55:50.686812+00:00. **39 distinct download sources have verified samples. The 30-source target is met.**
 
-Verified sample downloads: MangaDex, MangaKatana, Weeb Central, Flame Comics, MangaFreak, ZinManga, MangaRead.org, Mangasushi, MangaPill, ManhwaNex, ManhwaDen, Bun Manga, Gourmet Scans, Manga Eclipse, Manhuanext, Akaza Scans, Aqua Manga, Arena Scans, Aster Scans, Athrea Scans, Cucumber Manga, Decadence Scans, Scythe Scans, Eva Scans, GakaMangas, GalaxyDegenScans, Jinmangas, Kensscan, KSGroupScans, Lagoon Scans, Lovesjane Scans, Madara Scans, OctopusManga, S2Manga.
+Verified sample downloads: MangaDex, MangaKatana, Weeb Central, Flame Comics, MangaFreak, ZinManga, MangaRead.org, Mangasushi, MangaPill, ManhwaNex, ManhwaDen, Bun Manga, Gourmet Scans, Manga Eclipse, Manhuanext, Akaza Scans, Aqua Manga, Arena Scans, Aster Scans, Athrea Scans, Cucumber Manga, Decadence Scans, Scythe Scans, Eva Scans, GakaMangas, GalaxyDegenScans, Jinmangas, Kensscan, KSGroupScans, Lagoon Scans, Lovesjane Scans, Madara Scans, OctopusManga, S2Manga, LHTranslation, MangaPark.tv, ManhwaReads, Ruby Comics, Yaksha Comics.
 
 Each verified result required search, details, chapter listing, ordered page extraction, a complete chapter archive, and archive reopening/image checks. A homepage response, candidate definition, or metadata-only integration does not count. Tests use representative titles; the query and title are recorded below. No credentials, copied website code, or downloaded chapter content are included in this report.
 
@@ -37,6 +37,7 @@ Each verified result required search, details, chapter listing, ordered page ext
 | Kun Manga Online | Game Rules / Game Rules | Pass | Pass | No | No | No | 2026-11-07T16:27:06.3614436+00:00 | Retired · Response status code does not indicate success: 404 (Not Found). |
 | KunManga | One Piece /  | No | No | No | No | No | 2026-11-05T20:36:50.9925971+00:00 | Retired · Public access blocked (HTTP 403). |
 | Lagoon Scans | Ode of the Brave / Ode of the Brave | Pass | Pass | Pass | Pass | Pass | 2026-11-06T17:28:34.5660224+00:00 | Verified sample |
+| LHTranslation | Kuro no Shoukanshi / Kuro no Shoukanshi | Pass | Pass | Pass | Pass | Pass | 2026-11-07T16:51:56.7766555+00:00 | Verified sample |
 | LikeManga | One Piece /  | No | No | No | No | No | 2026-11-05T20:36:50.9736295+00:00 | Retired · Redirected to an unrelated or parked website. |
 | LinkManga | MF Ghost /  | No | No | No | No | No | 2026-11-07T16:29:08.387876+00:00 | Retired · No complete chapter download verified. |
 | Lovesjane Scans | Miyeon / Miyeon | Pass | Pass | Pass | Pass | Pass | 2026-11-06T17:35:11.8310303+00:00 | Verified sample |
@@ -63,6 +64,7 @@ Each verified result required search, details, chapter listing, ordered page ext
 | MangaManiacs | Fairy Pairing /  | No | No | No | No | No | 2026-11-07T16:27:24.9420955+00:00 | Retired · Response status code does not indicate success: 522 (<none>). |
 | Manganato | — | — | — | — | — | No | — | Retired · Origin server timed out (HTTP 522). |
 | MangaPark | — | — | — | — | — | No | — | Retired · Redirected to an unrelated or parked website. |
+| MangaPark.tv | Desharow Mermaid / Desharow Mermaid | Pass | Pass | Pass | Pass | Pass | 2026-11-07T16:51:13.19754+00:00 | Verified sample |
 | MangaPill | One Piece / One Piece | Pass | Pass | Pass | Pass | Pass | 2026-11-06T17:15:25.2564634+00:00 | Verified sample |
 | MangaRead.org | One Piece Episode A / One Piece Episode A | Pass | Pass | Pass | Pass | Pass | 2026-11-05T21:06:06.3822524+00:00 | Verified sample |
 | MangaReader | — | — | — | — | — | No | — | Retired · Origin server timed out (HTTP 522). |
@@ -80,18 +82,21 @@ Each verified result required search, details, chapter listing, ordered page ext
 | ManhwaDen | The Teacher in the Trap / The Teacher in the Trap | Pass | Pass | Pass | Pass | Pass | 2026-11-05T21:05:15.0020262+00:00 | Verified sample |
 | ManhwaManhua | — | — | — | — | — | No | — | Retired · No complete chapter download verified. |
 | ManhwaNex | Lord of Summons! Sudden Mutation / Lord of Summons! Sudden Mutation | Pass | Pass | Pass | Pass | Pass | 2026-11-05T21:05:45.274455+00:00 | Verified sample |
+| ManhwaReads | Steel Ball Run / Steel Ball Run | Pass | Pass | Pass | Pass | Pass | 2026-11-07T16:51:43.013243+00:00 | Verified sample |
 | ManhwaTop | One Piece /  | No | No | No | No | No | 2026-11-05T20:36:56.2363903+00:00 | Retired · Public access blocked (HTTP 403). |
 | OctopusManga | Blossoms of The White Night [Octopusmanga] / Blossoms of The White Night [Octopusmanga] | Pass | Pass | Pass | Pass | Pass | 2026-11-06T17:34:06.4822397+00:00 | Verified sample |
 | Rage Scans | — | — | — | — | — | No | — | Retired · Public access blocked (HTTP 403). |
 | Raven Scans | — | — | — | — | — | No | — | Retired · Public access blocked (HTTP 403). |
 | Reaper Scans | — | — | — | — | — | No | — | Retired · Origin server timed out (HTTP 522). |
 | Rose Squad Scans | — | — | — | — | — | No | — | Retired · Public access requires login. |
+| Ruby Comics | Love by Mistake / Love by Mistake | Pass | Pass | Pass | Pass | Pass | 2026-11-07T16:54:04.8836339+00:00 | Verified sample |
 | S2Manga | For the Young Villain’s Happy Ending / For the Young Villain’s Happy Ending | Pass | Pass | Pass | Pass | Pass | 2026-11-06T17:29:28.2356983+00:00 | Verified sample |
 | Scythe Scans | The Avenging Assassin Doll / The Avenging Assassin Doll | Pass | Pass | Pass | Pass | Pass | 2026-11-06T17:33:06.1722042+00:00 | Verified sample |
 | Setsu Scans | — | — | — | — | — | No | — | Retired · Public access blocked (HTTP 403). |
-| TopManhua | One Piece /  | No | No | No | No | No | 2026-11-05T20:36:58.8900685+00:00 | Retired · Redirected to an unrelated or parked website. |
+| TopManhua | Shining Nana Nana / Shining Nana Nana | Pass | Pass | Pass | Pass | No | 2026-11-07T16:54:32.3703189+00:00 | Retired · Redirected to an unrelated or parked website. |
 | WEBTOON | One Piece /  | No | No | No | No | No | 2026-11-07T16:32:08.2056181+00:00 | Retired · Invalid page count; source extraction failed. |
 | Weeb Central | One Piece / One Piece | Pass | Pass | Pass | Pass | Pass | 2026-11-05T21:07:26.0240928+00:00 | Verified sample |
+| Yaksha Comics | The Mech Mechanic / The Mech Mechanic | Pass | Pass | Pass | Pass | Pass | 2026-11-07T16:51:34.4461303+00:00 | Verified sample |
 | ZinManga | Star-Embracing Swordmaster / Star-Embracing Swordmaster | Pass | Pass | Pass | Pass | Pass | 2026-11-07T16:28:02.760097+00:00 | Verified sample |
 
 ## Limitations

@@ -145,6 +145,13 @@ public sealed class Store
         lock (_gate)
         {
             var job = Get<DownloadJob>("job", id) ?? throw new KeyNotFoundException("Download not found.");
+            if (IsRemovingSeries(job.Chapter.SeriesId)) throw new ArgumentException("This manga is being removed.");
+            if (action == "redownload")
+            {
+                if (job.Status != "Complete") throw new ArgumentException("Only a downloaded chapter can be redownloaded.");
+                Put("job", id, job with { Status = "Queued", Attempts = 0, RetryAt = null, Error = null });
+                return;
+            }
             if (job.Status == "Complete") throw new ArgumentException("Completed downloads cannot be modified here.");
             var status = action switch { "retry" or "resume" => "Queued", "pause" => "Paused", "cancel" => "Cancelled", _ => throw new ArgumentException("Unknown download action.") };
             if (status == "Queued" && job.Status == "Downloading") throw new ArgumentException("Pause or cancel the active download first.");

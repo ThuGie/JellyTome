@@ -125,11 +125,12 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
     public ActionResult Library()
     {
         Access();
-        var completed = store.All<DownloadJob>("job").Where(job => job.Status == "Complete").ToLookup(job => job.Chapter.SeriesId);
+        var downloads = store.All<DownloadJob>("job").ToLookup(job => job.Chapter.SeriesId);
         var progress = store.All<ReadingProgress>("progress:" + UserId().ToString("N")).ToLookup(entry => entry.SeriesId);
         return Ok(store.All<Subscription>("series").Select(subscription =>
         {
-            var jobs = completed[subscription.Series.Id];
+            var seriesJobs = downloads[subscription.Series.Id];
+            var jobs = seriesJobs.Where(job => job.Status == "Complete");
             var latest = jobs.Select(job => new { Job = job, Date = LibraryUpdateDate(job) })
                 .Where(entry => entry.Date != null)
                 .OrderByDescending(entry => entry.Date)
@@ -142,6 +143,7 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
                 subscription.LastChecked,
                 subscription.Error,
                 downloaded = jobs.Count(),
+                downloadStatus = seriesJobs.GroupBy(job => job.Status).ToDictionary(group => group.Key, group => group.Count()),
                 progress = progress[subscription.Series.Id].MaxBy(entry => entry.UpdatedAt),
                 lastUpdatedAt = latest?.Date,
                 latestUpdatedChapter = latest?.Job.Chapter,
@@ -181,7 +183,16 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
     [HttpGet("library/{id}/chapters")]
     public ActionResult Chapters(string id) { Access(); return Ok(store.All<DownloadJob>("job").Where(j => j.Chapter.SeriesId == id).OrderBy(j => j.Chapter.Number)); }
     [HttpGet("downloads")]
-    public ActionResult Downloads() { Access(); return Ok(store.All<DownloadJob>("job").Select(j => new { j.Chapter, j.SourceId, j.Status, j.Attempts, j.Error, j.RetryAt, j.Pages })); }
+    public ActionResult Downloads([FromQuery] string? seriesId = null)
+    {
+        Access();
+        var titles = store.All<Subscription>("series").ToDictionary(subscription => subscription.Series.Id, subscription => subscription.Series.Title);
+        return Ok(store.All<DownloadJob>("job").Where(job => seriesId == null || job.Chapter.SeriesId == seriesId).Select(j => new
+        {
+            j.Chapter, j.SourceId, j.Status, j.Attempts, j.Error, j.RetryAt, j.Pages,
+            seriesTitle = titles.GetValueOrDefault(j.Chapter.SeriesId)
+        }));
+    }
     [HttpGet("chapters/{id}/manifest")]
     public ActionResult Manifest(string id) { Access(); var job = Complete(id); return Ok(new { job.Chapter, pages = storage.Entries(job).Count }); }
     [HttpGet("chapters/{id}/pages/{page:int}")]

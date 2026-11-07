@@ -973,5 +973,60 @@
     "chaptersPath": "{series}/ajax/chapters/",
     "chaptersMethod": "POST",
     "retired": true
+  },
+  {
+    "id": "lhtranslation",
+    "name": "LHTranslation",
+    "baseUrl": "https://lhtranslation.net",
+    "enabled": false,
+    "status": "Verified",
+    "pagesPath": "{chapter}?style=list",
+    "pagesSelector": "img.wp-manga-chapter-img",
+    "chaptersMethod": "POST",
+    "chaptersPath": "{series}/ajax/chapters/"
+  },
+  {
+    "id": "mangaparktv",
+    "name": "MangaPark.tv",
+    "baseUrl": "https://mangapark.tv",
+    "enabled": false,
+    "status": "Verified",
+    "pagesPath": "{chapter}?style=list",
+    "pagesSelector": "img.wp-manga-chapter-img",
+    "chaptersMethod": "POST",
+    "chaptersPath": "{series}/ajax/chapters/"
+  },
+  {
+    "id": "manhwareads",
+    "name": "ManhwaReads",
+    "baseUrl": "https://manhwareads.com",
+    "enabled": false,
+    "status": "Verified",
+    "pagesPath": "{chapter}?style=list",
+    "pagesSelector": "img.wp-manga-chapter-img",
+    "chaptersMethod": "POST",
+    "chaptersPath": "{series}/ajax/chapters/"
+  },
+  {
+    "id": "rubycomics",
+    "name": "Ruby Comics",
+    "baseUrl": "https://rubycomics.net",
+    "enabled": false,
+    "status": "Verified",
+    "pagesPath": "{chapter}?style=list",
+    "pagesSelector": "img.wp-manga-chapter-img",
+    "chaptersMethod": "POST",
+    "chaptersPath": "{series}/ajax/chapters/"
+  },
+  {
+    "id": "yakshacomics",
+    "name": "Yaksha Comics",
+    "baseUrl": "https://yakshacomics.com",
+    "enabled": false,
+    "status": "Verified",
+    "pagesPath": "{chapter}?style=list",
+    "pagesSelector": "img.wp-manga-chapter-img",
+    "chaptersMethod": "POST",
+    "chaptersPath": "{series}/ajax/chapters/"
   }
 ]

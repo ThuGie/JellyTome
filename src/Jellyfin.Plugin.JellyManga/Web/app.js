@@ -61,7 +61,7 @@
             document.addEventListener('keydown', keys); await navigate(tab);
         } catch (e) { message(e.message, true); }
     }
-    async function navigate(tab) {
+    async function navigate(tab, seriesId = null) {
         clearInterval(poll); generation++; reader = null; releaseImages(); current = tab; if (!main) return;
         root.querySelector('.jm-header').hidden = false; main.className = 'jm-main'; main.replaceChildren(); root.scrollTop = 0;
         root.querySelectorAll('[data-tab]').forEach(b => { if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
@@ -69,7 +69,7 @@
         try {
             if (tab === 'discover') await discover(version);
             else if (['library', 'recent', 'continue'].includes(tab)) await library(tab, version);
-            else if (tab === 'downloads') await downloads(version);
+            else if (tab === 'downloads') await downloads(version, seriesId);
             else if (tab === 'admin' && session.admin) await admin('Overview', version);
         } catch (e) { if (version === generation) message(e.message, true); }
     }
@@ -115,11 +115,37 @@
                         details.remove();
                     });
                     card.append(details);
-                    const actions = element('div', 'jm-actions'); actions.append(button('Request & monitor', async () => { await api('requests', 'POST', { sourceId: s.sourceId, url: s.url }); message(`“${s.title}” requested. Available chapters are queued and monitoring is on.`); }, 'jm-primary')); card.append(actions); results.append(card);
+                    const actions = element('div', 'jm-actions');
+                    const progressLink = button('View download progress', () => navigate('downloads', s.id));
+                    actions.append(button('Request & monitor', async () => {
+                        await api('requests', 'POST', { sourceId: s.sourceId, url: s.url });
+                        if (version !== generation || number !== searchNumber) return;
+                        message('“' + s.title + '” requested. Available chapters are queued and monitoring is on.');
+                        actions.append(progressLink);
+                    }, 'jm-primary'));
+                    card.append(actions);
+                    results.append(card);
                 }
                 if (data.errors.length) { const errors = element('details'); errors.append(element('summary', '', 'Source diagnostics'), element('pre', '', data.errors.map(x => x.sourceId + ': ' + x.error).join('\n'))); main.append(errors); }
             } catch (ex) { if (version === generation) message(ex.message, true); } finally { submit.disabled = false; }
         };
+    }
+    function downloadProgress(counts, title) {
+        const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+        const complete = counts.Complete || 0;
+        const summary = element('div', 'jm-download-progress');
+        const label = complete + ' of ' + total + ' chapters downloaded';
+        const bar = element('progress');
+        bar.max = total;
+        bar.value = complete;
+        bar.setAttribute('aria-label', 'Downloads for ' + title);
+        bar.setAttribute('aria-valuetext', label);
+        summary.append(element('p', '', label), bar);
+        const statuses = ['Downloading', 'Queued', 'Paused', 'Failed', 'Cancelled']
+            .filter(status => counts[status])
+            .map(status => counts[status] + ' ' + status.toLowerCase());
+        summary.append(element('p', 'jm-muted', statuses.join(' · ') || 'Complete'));
+        return summary;
     }
     async function library(tab, version) {
         const continuing = tab === 'continue', recent = tab === 'recent';
@@ -149,6 +175,8 @@
         for (const item of data) {
             const card = element('article', 'jm-card');
             card.append(cover(item.series), element('div', 'jm-badge', item.series.sourceId), element('h3', '', item.series.title), element('p', '', item.downloaded + ' chapters downloaded · ' + (item.monitoring ? 'Monitoring' : 'Not monitoring')));
+            if (item.downloadStatus && Object.keys(item.downloadStatus).length)
+                card.append(downloadProgress(item.downloadStatus, item.series.title));
             if (item.lastUpdatedAt) {
                 const date = element('time', 'jm-muted', new Date(item.lastUpdatedAt).toLocaleString());
                 date.dateTime = item.lastUpdatedAt;
@@ -160,6 +188,8 @@
             const actions = element('div', 'jm-actions');
             if (recent && item.latestUpdatedChapter)
                 actions.append(button('Read latest addition', () => read(item.latestUpdatedChapter.id)));
+            if (item.downloadStatus?.Queued || item.downloadStatus?.Downloading)
+                actions.append(button('View download progress', () => navigate('downloads', item.series.id)));
             if (item.progress)
                 actions.append(button('Continue reading', () => read(item.progress.chapterId, item.progress.page, item.progress.bookmarked)));
             actions.append(button(item.progress ? 'Chapters' : 'View chapters', () => chapterList(item.series)));
@@ -193,16 +223,73 @@
         generation++; const version = generation; main.replaceChildren(); heading(series.title, series.description); main.append(button('← Library', () => navigate('library')));
         const jobs = await api('library/' + series.id + '/chapters'); if (version !== generation) return;
         const panel = element('div', 'jm-panel'); main.append(panel);
-        for (const job of jobs) { const row = element('div', 'jm-row'); row.append(element('div', '', job.chapter.title), job.status === 'Complete' ? button('Read', () => read(job.chapter.id)) : element('small', '', job.status)); panel.append(row); }
+        for (const job of jobs) {
+            const row = element('div', 'jm-row');
+            row.append(element('div', '', job.chapter.title));
+            if (job.status === 'Complete') {
+                const actions = element('div', 'jm-actions');
+                actions.append(button('Read', () => read(job.chapter.id)));
+                if (session.admin) actions.append(button('Redownload', async () => {
+                    await api('admin/downloads/' + encodeURIComponent(job.chapter.id) + '/redownload', 'POST');
+                    if (version === generation) await chapterList(series);
+                }));
+                row.append(actions);
+            } else row.append(element('small', '', job.status));
+            panel.append(row);
+        }
     }
-    async function downloads(version) {
-        heading('Chapters on their way.', 'Requests start immediately. Your administrator can pause, cancel, or retry downloads.');
-        const panel = element('div', 'jm-panel'); main.append(panel);
+    async function downloads(version, seriesId) {
+        heading('Downloads', 'Follow the download queue for each manga.');
+        if (seriesId) main.append(button('All downloads', () => navigate('downloads')));
+        const panel = element('div');
+        main.append(panel);
+        let refreshing = false;
         const refresh = async () => {
-            const jobs = await api('downloads'); if (version !== generation) return; panel.replaceChildren();
-            if (!jobs.length) panel.append(element('div', 'jm-empty', 'No downloads requested yet.'));
-            for (const job of jobs) { const row = element('div', 'jm-row'); const info = element('div'); info.append(element('strong', '', job.chapter.title), element('div', 'jm-muted', `${job.sourceId} · ${job.status} · attempt ${job.attempts}`)); if (job.error) info.append(element('small', '', job.error)); row.append(info); if (job.status === 'Complete') row.append(button('Read', () => read(job.chapter.id))); panel.append(row); }
-        }; await refresh(); poll = setInterval(() => refresh().catch(e => message(e.message, true)), 5000);
+            if (refreshing) return;
+            refreshing = true;
+            try {
+                const jobs = await api('downloads' + (seriesId ? '?seriesId=' + encodeURIComponent(seriesId) : ''));
+                if (version !== generation) return;
+                const open = new Set([...panel.querySelectorAll('details[open]')].map(node => node.dataset.series));
+                panel.replaceChildren();
+                if (!jobs.length) {
+                    panel.append(element('div', 'jm-empty', 'No downloads requested yet.'));
+                    return;
+                }
+                const groups = new Map();
+                for (const job of jobs) {
+                    const id = job.chapter.seriesId;
+                    if (!groups.has(id)) groups.set(id, []);
+                    groups.get(id).push(job);
+                }
+                const ordered = [...groups].sort(([, a], [, b]) =>
+                    Number(b.some(job => job.status !== 'Complete')) - Number(a.some(job => job.status !== 'Complete')));
+                for (const [id, chapters] of ordered) {
+                    const title = chapters[0].seriesTitle || chapters[0].sourceId;
+                    const counts = {};
+                    for (const job of chapters) counts[job.status] = (counts[job.status] || 0) + 1;
+                    const group = element('section', 'jm-panel');
+                    group.append(element('h2', '', title), downloadProgress(counts, title));
+                    const detail = element('details');
+                    detail.dataset.series = id;
+                    detail.open = open.has(id);
+                    detail.append(element('summary', '', 'Chapter statuses'));
+                    for (const job of chapters.sort((a, b) => a.chapter.number - b.chapter.number)) {
+                        const row = element('div', 'jm-row');
+                        const info = element('div');
+                        info.append(element('strong', '', job.chapter.title), element('div', 'jm-muted', job.status));
+                        if (job.error) info.append(element('small', '', job.error));
+                        row.append(info);
+                        if (job.status === 'Complete') row.append(button('Read', () => read(job.chapter.id)));
+                        detail.append(row);
+                    }
+                    group.append(detail);
+                    panel.append(group);
+                }
+            } finally { refreshing = false; }
+        };
+        await refresh();
+        if (version === generation) poll = setInterval(() => refresh().catch(e => message(e.message, true)), 5000);
     }
     async function admin(section, version = generation) {
         if (!session.admin || root?.dataset.embedded !== '1') throw new Error('Open administration from Jellyfin Dashboard > JellyTome.');

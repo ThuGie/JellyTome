@@ -10,7 +10,7 @@ const chapter = { id: 'b'.repeat(64), seriesId: series.id, title: 'Chapter 1 · 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=', 'base64');
 const source = { id: 'fixture', name: 'Fixture source', baseUrl: 'https://example.org', kind: 'html', status: 'Verified download', enabled: true };
 const job = { chapter, sourceId: 'fixture', status: 'Complete', pages: 12, attempts: 1 };
-let progress = [], requested = 0, savedSettings;
+let progress = [], requested = 0, savedSettings, redownloading = false;
 const calls = [];
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost'); const route = url.pathname.replace('/base/JellyManga/', '');
@@ -38,9 +38,10 @@ const server = http.createServer(async (req, res) => {
     else if (route === 'search') result = { results: [series], errors: [], downloadedCounts: { [series.id]: 1 } };
     else if (route === 'requests') { requested++; result = { series, monitoring: true }; }
     else if (route === 'library') result = [{ series, monitoring: true, downloaded: 1, progress: progress[0], lastUpdatedAt: '2026-11-06T12:00:00Z', latestUpdatedChapter: chapter }];
-    else if (route.endsWith('/chapters')) result = [job];
+    else if (route.endsWith('/chapters')) result = [redownloading ? {...job, status:'Queued'} : job];
     else if (route.endsWith('/manifest')) result = { chapter, pages: 12 };
-    else if (route === 'downloads') result = [job];
+    else if (route === 'downloads') result = [{...job, seriesTitle: series.title}, {...job, chapter: {...chapter, number: 2, title:'Chapter 2'}, status:'Downloading', seriesTitle: series.title}];
+    else if (route === 'admin/downloads/' + chapter.id + '/redownload' && req.method === 'POST') { redownloading = true; res.statusCode = 204; res.end(); return; }
     else if (route === 'progress') { if (body) { progress = [body]; res.statusCode = 204; res.end(); return; } result = progress; }
     else if (route === 'admin/overview') result = { injection: true, usedBytes: 1024, downloads: { Complete: 1 }, checks: [], monitored: [{ series, monitoring: true }], libraries: [{ name: 'Manga', itemId: 'lib' }], users: [{ id: 'user-1', username: 'Reader' }] };
     else if (route === 'admin/sources') result = [source];
@@ -54,7 +55,7 @@ const server = http.createServer(async (req, res) => {
     const browser = await chromium.launch({ headless: true }); let assertions = 0;
     try {
         for (const [name, width, height] of [['desktop', 1440, 1000], ['tablet', 820, 1180], ['mobile', 390, 844]]) {
-            progress = []; const page = await browser.newPage({ viewport: { width, height } }); page.setDefaultTimeout(10000); const errors = []; page.on('pageerror', e => errors.push(e.message));
+            progress = []; redownloading = false; const page = await browser.newPage({ viewport: { width, height } }); page.setDefaultTimeout(10000); const errors = []; page.on('pageerror', e => errors.push(e.message));
             await page.goto(`http://127.0.0.1:${server.address().port}/base/web/index.html`);
             await page.locator('[data-jellymanga-header]').click(); assertions++; await page.locator('#jm-app h1').waitFor();
             assert.equal(await page.locator('#foreign-plugin').count(), 1); assertions++;
@@ -81,6 +82,9 @@ const server = http.createServer(async (req, res) => {
             await page.waitForFunction(() => document.querySelector('.jm-cover img')?.naturalWidth > 0); assertions++;
             assert(calls.some(call => call.startsWith('GET covers/'))); assertions++;
             await page.screenshot({ path: path.join(artifacts, name + '-discover.png') });
+            await page.getByRole('button', {name:'View download progress',exact:true}).click();
+            await page.getByText('1 of 2 chapters downloaded', {exact:true}).waitFor();
+            await page.getByText('1 downloading', {exact:true}).waitFor(); assertions += 2;
             await page.getByRole('button', { name: 'My library', exact: true }).click(); await page.getByRole('button', { name: 'View chapters' }).click(); await page.getByRole('button', { name: 'Read', exact: true }).click(); await page.locator('.jm-reader-pages img').waitFor();
             await page.getByRole('button', { name: 'Next', exact: true }).click(); await page.waitForFunction(() => document.querySelector('.jm-reader-bottom input').value === '2'); assertions++;
             await page.keyboard.press('ArrowLeft'); await page.waitForFunction(() => document.querySelector('.jm-reader-bottom input').value === '3'); assertions++;
@@ -102,7 +106,11 @@ const server = http.createServer(async (req, res) => {
             await page.getByRole('combobox', { name: 'Reading mode' }).selectOption('vertical');
             await page.locator('.jm-vertical-page[data-page="2"] img').waitFor();
             await page.screenshot({ path: path.join(artifacts, name + '-reader.png') });
-            await page.getByRole('button', { name: '← Library', exact: true }).click(); await page.goto(`http://127.0.0.1:${server.address().port}/base/web/configurationpage?name=JellyManga`); await page.getByRole('button', { name: 'Sources', exact: true }).click(); await page.getByRole('button', { name: 'Edit / rules' }).waitFor();
+            await page.getByRole('button', { name: '← Library', exact: true }).click();
+            await page.getByRole('button', { name: 'Chapters', exact: true }).click();
+            await page.getByRole('button', { name: 'Redownload', exact: true }).click();
+            await page.getByText('Queued', {exact:true}).waitFor(); assertions++;
+            await page.goto(`http://127.0.0.1:${server.address().port}/base/web/configurationpage?name=JellyManga`); await page.getByRole('button', { name: 'Sources', exact: true }).click(); await page.getByRole('button', { name: 'Edit / rules' }).waitFor();
             await page.getByLabel('Max concurrent downloads · Fixture source').fill('4');
             await page.getByRole('button', { name: 'Save download limit', exact: true }).click();
             await page.getByRole('status').filter({hasText:'Website download limit saved'}).waitFor();

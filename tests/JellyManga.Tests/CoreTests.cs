@@ -49,6 +49,37 @@ public sealed class CoreTests : IDisposable
     }
 
     [Fact]
+    public async Task RedownloadKeepsTheArchiveUntilReplacementCanCommit()
+    {
+        var store = Store();
+        var chapter = Chapter();
+        var relative = Path.Combine(chapter.SeriesId, chapter.Id + ".cbz");
+        var storage = new LibraryStorage(() => new Configuration { StoragePath = _root, StorageLimitBytes = 2 });
+        var archive = storage.Absolute(relative);
+        Directory.CreateDirectory(Path.GetDirectoryName(archive)!);
+        File.WriteAllBytes(archive, [1]);
+        store.Put("job", chapter.Id, new DownloadJob(chapter, "fixture", "user", "Complete", RelativePath: relative));
+
+        store.Action(chapter.Id, "redownload");
+
+        var queued = store.Get<DownloadJob>("job", chapter.Id)!;
+        Assert.Equal("Queued", queued.Status);
+        Assert.Equal(relative, queued.RelativePath);
+        Assert.Equal(new byte[] { 1 }, File.ReadAllBytes(archive));
+
+        // Keep the database outside the folder whose archive budget is being tested.
+        var replacementRoot = Path.Combine(_root, "replacement");
+        Directory.CreateDirectory(replacementRoot);
+        var replacementStorage = new LibraryStorage(() => new Configuration { StoragePath = replacementRoot, StorageLimitBytes = 1 });
+        var old = replacementStorage.Absolute("chapter.cbz");
+        var staged = replacementStorage.Absolute("chapter.part");
+        File.WriteAllBytes(old, [1]);
+        File.WriteAllBytes(staged, [2]);
+        await replacementStorage.Commit(staged, "chapter.cbz", default);
+        Assert.Equal(new byte[] { 2 }, File.ReadAllBytes(old));
+    }
+
+    [Fact]
     public void QueueIsDurableDeduplicatedAndRecovers()
     {
         var store = Store(); var chapter = Chapter(); Parallel.For(0, 20, _ => store.Enqueue(chapter, "fixture", "user")); Assert.Single(store.All<DownloadJob>("job"));
