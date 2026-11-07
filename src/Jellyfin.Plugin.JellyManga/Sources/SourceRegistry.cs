@@ -30,7 +30,10 @@ public sealed class SourceRegistry(Store store, ISourceHttp http)
                 saved = saved with { Enabled = false, Retired = true, Status = bundled.Status };
             else if (Rules(saved) == Rules(bundled)
                 && bundled.Status == "Verified"
-                && (saved.Status == "Untested" || saved.Status.StartsWith("Verified", StringComparison.Ordinal)))
+                && (saved.Status == "Untested"
+                    || saved.Status.StartsWith("Verified", StringComparison.Ordinal)
+                    || saved.Status.StartsWith("Candidate:", StringComparison.Ordinal)
+                    || saved.Status.StartsWith("Experimental / failed live test:", StringComparison.Ordinal)))
                 saved = saved with { Status = bundled.Status };
             merged.Add(saved);
         }
@@ -73,6 +76,14 @@ public sealed class SourceRegistry(Store store, ISourceHttp http)
     {
         var definition = Get(id, false) with { MaxConcurrentDownloads = limit }; Validate(definition);
         store.Put("source", id, definition);
+    }
+    public SourceDefinition SetEnabled(string id, bool enabled)
+    {
+        var definition = Get(id, false);
+        if (definition.Removed || definition.Retired) throw new ArgumentException("This source has been removed or retired.");
+        definition = definition with { Enabled = enabled };
+        store.Put("source", id, definition);
+        return definition;
     }
     public void Save(SourceDefinition definition) { Validate(definition); store.Put("source", definition.Id, definition with { Status = "Untested" }); store.Delete("check", definition.Id); }
     public void Remove(string id) { var d = Get(id, false); store.Put("source", id, d with { Enabled = false, Removed = true }); }

@@ -45,6 +45,10 @@ const server = http.createServer(async (req, res) => {
     else if (route === 'progress') { if (body) { progress = [body]; res.statusCode = 204; res.end(); return; } result = progress; }
     else if (route === 'admin/overview') result = { injection: true, usedBytes: 1024, downloads: { Complete: 1 }, checks: [], monitored: [{ series, monitoring: true }], libraries: [{ name: 'Manga', itemId: 'lib' }], users: [{ id: 'user-1', username: 'Reader' }] };
     else if (route === 'admin/sources') result = [source];
+    else if (route === 'admin/sources/fixture/enabled' && req.method === 'PUT') {
+        source.enabled = body;
+        result = source;
+    }
     else if (route === 'admin/sources/fixture/downloads' && req.method === 'PUT') { source.maxConcurrentDownloads = body.maxConcurrentDownloads; res.statusCode = 204; res.end(); return; }
     else if (route === 'admin/settings') { if (body) { savedSettings = body; res.statusCode = 204; res.end(); return; } result = savedSettings || { storagePath: '/manga', libraryId: 'lib', storageLimitBytes: 50 * 1073741824, deniedUsers: [], monitorMinutes: 360, downloadConcurrency: 2 }; }
     else { res.statusCode = 404; result = { error: 'Fixture route missing: ' + route }; }
@@ -111,6 +115,13 @@ const server = http.createServer(async (req, res) => {
             await page.getByRole('button', { name: 'Redownload', exact: true }).click();
             await page.getByText('Queued', {exact:true}).waitFor(); assertions++;
             await page.goto(`http://127.0.0.1:${server.address().port}/base/web/configurationpage?name=JellyManga`); await page.getByRole('button', { name: 'Sources', exact: true }).click(); await page.getByRole('button', { name: 'Edit / rules' }).waitFor();
+            const sourceRow = page.locator('.jm-row').filter({hasText:'Fixture source'});
+            await sourceRow.evaluate(row => { row.dataset.toggleCheck = 'original'; });
+            await sourceRow.getByRole('button', {name:'Disable',exact:true}).click();
+            await sourceRow.getByRole('button', {name:'Enable',exact:true}).waitFor();
+            await sourceRow.getByRole('button', {name:'Enable',exact:true}).click();
+            await sourceRow.getByRole('button', {name:'Disable',exact:true}).waitFor();
+            assert.equal(await sourceRow.getAttribute('data-toggle-check'), 'original'); assertions++;
             await page.getByLabel('Max concurrent downloads · Fixture source').fill('4');
             await page.getByRole('button', { name: 'Save download limit', exact: true }).click();
             await page.getByRole('status').filter({hasText:'Website download limit saved'}).waitFor();

@@ -241,7 +241,9 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
         Plugin.Instance.UpdateConfiguration(config); store.Event("Settings", "Administrator updated manga settings."); return NoContent();
     }
     [HttpGet("admin/sources"), Authorize(Policy = "RequiresElevation")]
-    public ActionResult AdminSources() => Ok(sources.All().Where(source => !source.Retired));
+    public ActionResult AdminSources() => Ok(sources.All().Where(source => !source.Retired && !source.Removed));
+    [HttpPut("admin/sources/{id}/enabled"), Authorize(Policy = "RequiresElevation")]
+    public ActionResult SourceEnabled(string id, [FromBody] bool enabled) => Ok(sources.SetEnabled(id, enabled));
     [HttpPut("admin/sources/{id}"), Authorize(Policy = "RequiresElevation")]
     public ActionResult Source(string id, [FromBody] SourceDefinition source) { if (id != source.Id) throw new ArgumentException("Source identifier mismatch."); sources.Save(source); return NoContent(); }
     [HttpPut("admin/sources/{id}/downloads"), Authorize(Policy = "RequiresElevation")]

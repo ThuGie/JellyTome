@@ -362,12 +362,23 @@
         const sources = await api('admin/sources'); if (version !== generation) return;
         const actions = element('div', 'jm-actions'); actions.append(button('Add custom source', () => editSource({ id: '', name: '', baseUrl: 'https://example.org', kind: 'html', enabled: false, delayMilliseconds: 1500, maxPagination: 5, allowedHosts: [], searchPath: '/?s={query}', searchItems: '.result', searchLink: 'a', searchCover: 'img', titleSelector: 'h1', descriptionSelector: '.description', chaptersPath: '{series}', chapterItems: '.chapters a', chapterLink: '', pagesSelector: '.reader img', imageAttribute: 'src' })), button('Export definitions', () => { const blob = new Blob([JSON.stringify(sources, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = element('a'); a.href = url; a.download = 'jellymanga-sources.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }), button('Import definitions', () => { const input = element('input'); input.type = 'file'; input.accept = '.json'; input.onchange = async () => { try { if (!input.files[0] || input.files[0].size > 1024 * 1024) throw new Error('Choose a JSON file smaller than 1 MiB.'); await api('admin/sources/import', 'POST', JSON.parse(await input.files[0].text())); await admin('Sources'); } catch (e) { message(e.message, true); } }; input.click(); })); panel.append(actions);
         for (const source of sources) {
-            const row = element('div', 'jm-row'); const info = element('div'); info.append(element('strong', '', source.name), element('div', 'jm-muted', source.status?.startsWith('Verified') ? 'Verified' : source.status?.startsWith('Failed') ? 'Verification failed' : source.status), element('small', '', source.removed ? 'Removed · library retained' : source.enabled ? 'Enabled' : 'Disabled')); const controls = element('div', 'jm-actions');
+            const row = element('div', 'jm-row'); const info = element('div'); const enabledLabel = element('small', '', source.enabled ? 'Enabled' : 'Disabled'); info.append(element('strong', '', source.name), element('div', 'jm-muted', source.status?.startsWith('Verified') ? 'Verified' : source.status?.startsWith('Failed') ? 'Verification failed' : source.status), enabledLabel); const controls = element('div', 'jm-actions');
             const limitForm = element('form', 'jm-form'); const limit = field(limitForm, 'Max concurrent downloads · ' + source.name, source.maxConcurrentDownloads ?? 1, 'number'); limit.min = '1'; limit.max = '8'; limit.step = '1';
             limitForm.append(button('Save download limit', () => limitForm.requestSubmit()));
             limitForm.onsubmit = async e => { e.preventDefault(); try { await api('admin/sources/' + encodeURIComponent(source.id) + '/downloads', 'PUT', { maxConcurrentDownloads: Number(limit.value) }); source.maxConcurrentDownloads = Number(limit.value); message('Website download limit saved. The global limit and request delay still apply.'); } catch (ex) { message(ex.message, true); } };
             info.append(limitForm);
-            controls.append(button('Edit / rules', () => editSource(source)), button(source.enabled ? 'Disable' : 'Enable', async () => { await api('admin/sources/' + source.id, 'PUT', { ...source, enabled: !source.enabled, removed: false }); await admin('Sources'); }), button('Test', () => testSource(source)), button('Remove', async () => { await api('admin/sources/' + source.id, 'DELETE'); await admin('Sources'); })); row.append(info, controls); panel.append(row);
+            const sourceRoute = 'admin/sources/' + encodeURIComponent(source.id);
+            const toggle = button(source.enabled ? 'Disable' : 'Enable', async () => {
+                Object.assign(source, await api(sourceRoute + '/enabled', 'PUT', !source.enabled));
+                enabledLabel.textContent = source.enabled ? 'Enabled' : 'Disabled';
+                toggle.textContent = source.enabled ? 'Disable' : 'Enable';
+            });
+            controls.append(button('Edit / rules', () => editSource(source)), toggle, button('Test', () => testSource(source)), button('Remove', async () => {
+                await api(sourceRoute, 'DELETE');
+                row.remove();
+            }));
+            row.append(info, controls);
+            panel.append(row);
         }
     }
     function editSource(source) {

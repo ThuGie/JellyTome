@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0.15
+
+- Refresh stale candidate labels for verified bundled rules and hide retired or removed sources.
+- Enable and disable sources in place without scrolling back to the top or resetting verification.
+
 ## 0.1.0.14
 
 - Add verified Madara sources LHTranslation, MangaPark.tv, ManhwaReads, Ruby Comics, and Yaksha Comics.

@@ -147,6 +147,17 @@ public sealed class CoreTests : IDisposable
         Assert.Null(store.Claim(counts, limits, 4));
     }
     [Fact]
+    public void StaleCandidateStatusRefreshesAndTogglingPreservesVerification()
+    {
+        var store = Store();
+        var registry = new SourceRegistry(store, new FixtureHttp());
+        var bundled = registry.Get("athreascans", false);
+        store.Put("source", bundled.Id, bundled with { Status = "Candidate: browser and full download validation pending" });
+        Assert.Equal("Verified", registry.Get(bundled.Id, false).Status);
+        Assert.True(registry.SetEnabled(bundled.Id, true).Enabled);
+        Assert.Equal("Verified", registry.Get(bundled.Id).Status);
+    }
+    [Fact]
     public void WebsiteLimitPersistsWithoutDiscardingVerificationOrAdminChoices()
     {
         var store = Store(); var registry = new SourceRegistry(store, new FixtureHttp());
