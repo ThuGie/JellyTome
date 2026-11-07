@@ -9,6 +9,15 @@
     "imageUrl": "https://raw.githubusercontent.com/ThuGie/JellyTome/main/thumb.png",
     "versions": [
       {
+        "version": "0.1.0.9",
+        "changelog": "- Show the downloaded chapter count on matching search results.\n- Add on-demand chapter details with the source\u2019s English chapter count, latest listed chapter, and synopsis.",
+        "targetAbi": "10.11.3.0",
+        "sourceUrl": "https://github.com/ThuGie/JellyTome/releases/download/v0.1.0.9/JellyTome_0.1.0.9.zip",
+        "checksum": "8b04b190222165f3a5be2913aa1e2745",
+        "timestamp": "2026-11-07T10:58:42.539953+00:00",
+        "dependencies": []
+      },
+      {
         "version": "0.1.0.8",
         "changelog": "- Render lazy-loaded thumbnails in search, library, and Continue Reading through authenticated Jellyfin endpoints, with local cover caching and source referrers.\n- Fetch missing cover metadata for existing library entries, retain source identities, retry unavailable covers with backoff, and use a downloaded page when no source cover is available.\n- Include cover art from MangaDex, Flame Comics, and HTML source details; retain private-network and source-host validation.\n- Start eligible queued chapters in numeric order, including after restart, instead of archive-ID order. Concurrent downloads may finish out of order.",
         "targetAbi": "10.11.3.0",
