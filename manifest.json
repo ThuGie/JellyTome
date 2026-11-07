@@ -9,6 +9,15 @@
     "imageUrl": "https://raw.githubusercontent.com/ThuGie/JellyTome/main/thumb.png",
     "versions": [
       {
+        "version": "0.1.0.11",
+        "changelog": "- Download one chapter at a time per series in numeric order. Earlier chapters that are paused, waiting for retry, or failed hold later chapters until resolved or explicitly cancelled.\n- Keep concurrent download slots available to other series within the configured limits.",
+        "targetAbi": "10.11.3.0",
+        "sourceUrl": "https://github.com/ThuGie/JellyTome/releases/download/v0.1.0.11/JellyTome_0.1.0.11.zip",
+        "checksum": "839db30e40347918188646de0f623397",
+        "timestamp": "2026-11-07T16:26:57.124796+00:00",
+        "dependencies": []
+      },
+      {
         "version": "0.1.0.10",
         "changelog": "- Show the listed chapter range and flag sources whose numbered chapters start after chapter 1.\n- Let administrators stop monitoring and remove a manga, its queued downloads, archives, and reading progress from the shared library.",
         "targetAbi": "10.11.3.0",
