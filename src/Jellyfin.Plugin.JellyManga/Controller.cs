@@ -84,7 +84,26 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
             finally { concurrency.Release(); }
         }));
         foreach (var series in results) covers.Remember(series);
-        return Ok(new { results, errors });
+        var resultIds = results.Select(series => series.Id).ToHashSet();
+        var downloadedCounts = store.All<DownloadJob>("job")
+            .Where(job => job.Status == "Complete" && resultIds.Contains(job.Chapter.SeriesId))
+            .GroupBy(job => job.Chapter.SeriesId)
+            .ToDictionary(group => group.Key, group => group.Count());
+        return Ok(new { results, errors, downloadedCounts });
+    }
+    [HttpGet("search/{id}/details")]
+    public async Task<ActionResult> SearchDetails(string id, CancellationToken ct)
+    {
+        Access();
+        Identity.ValidId(id);
+        var series = store.Get<Series>("cover-series", id) ?? throw new KeyNotFoundException("Search result not found.");
+        var adapter = sources.Adapter(series.SourceId);
+        var details = await adapter.Details(series.Url, ct);
+        var chapters = (await adapter.Chapters(details, ct))
+            .Where(chapter => chapter.Language == "en")
+            .OrderByDescending(chapter => chapter.Number)
+            .ToArray();
+        return Ok(new { details.Description, chapterCount = chapters.Length, latestChapter = chapters.FirstOrDefault()?.Title });
     }
     [HttpPost("requests")]
     public async Task<ActionResult> CreateRequest([FromBody] RequestBody request, CancellationToken ct)

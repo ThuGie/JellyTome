@@ -34,7 +34,8 @@ const server = http.createServer(async (req, res) => {
     let result;
     if (route === 'session') result = { userId: 'user-1', admin: true };
     else if (route === 'sources') result = [source];
-    else if (route === 'search') result = { results: [series], errors: [] };
+    else if (route === 'search/' + series.id + '/details') result = { chapterCount: 12, latestChapter: 'Chapter 12', description: 'Detailed synopsis' };
+    else if (route === 'search') result = { results: [series], errors: [], downloadedCounts: { [series.id]: 1 } };
     else if (route === 'requests') { requested++; result = { series, monitoring: true }; }
     else if (route === 'library') result = [{ series, monitoring: true, downloaded: 1, progress: progress[0] }];
     else if (route.endsWith('/chapters')) result = [job];
@@ -69,6 +70,9 @@ const server = http.createServer(async (req, res) => {
             await page.screenshot({ path: path.join(artifacts, name + '-library.png') });
             await page.getByRole('button', { name: 'Discover', exact: true }).click(); await page.getByRole('textbox', { name: 'Search manga', exact: true }).fill('Lantern'); await page.getByRole('button', { name: 'Search', exact: true }).click(); await page.getByRole('button', { name: 'Request & monitor' }).click();
             await page.getByRole('status').filter({ hasText: 'requested' }).waitFor(); assertions++;
+            await page.getByText('1 chapter downloaded', {exact:true}).waitFor();
+            await page.getByRole('button', {name:'Chapter details',exact:true}).click();
+            await page.getByText('12 English chapter listings · Latest: Chapter 12', {exact:true}).waitFor(); assertions += 2;
             await page.waitForFunction(() => document.querySelector('.jm-cover img')?.naturalWidth > 0); assertions++;
             assert(calls.some(call => call.startsWith('GET covers/'))); assertions++;
             await page.screenshot({ path: path.join(artifacts, name + '-discover.png') });

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0.9
+
+- Show the downloaded chapter count on matching search results.
+- Add on-demand chapter details with the source’s English chapter count, latest listed chapter, and synopsis.
+
 ## 0.1.0.8
 
 - Render lazy-loaded thumbnails in search, library, and Continue Reading through authenticated Jellyfin endpoints, with local cover caching and source referrers.

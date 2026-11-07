@@ -89,6 +89,25 @@
                 message(`${data.results.length} results${data.errors.length ? ` · ${data.errors.length} sources could not respond` : ''}`);
                 for (const s of data.results) {
                     const card = element('article', 'jm-card'); card.append(cover(s), element('div', 'jm-badge', sources.find(x => x.id === s.sourceId)?.name || s.sourceId), element('h3', '', s.title), element('p', '', s.description || 'English chapters · automatic release monitoring'));
+                    const downloaded = data.downloadedCounts?.[s.id] ?? 0;
+                    if (downloaded > 0) card.append(element('div', 'jm-badge', downloaded === 1 ? '1 chapter downloaded' : downloaded + ' chapters downloaded'));
+                    const chapterInfo = element('p', 'jm-muted');
+                    chapterInfo.setAttribute('aria-live', 'polite');
+                    card.append(chapterInfo);
+                    const details = button('Chapter details', async () => {
+                        chapterInfo.textContent = 'Loading chapter details…';
+                        let info;
+                        try {
+                            info = await api('search/' + encodeURIComponent(s.id) + '/details');
+                        } catch (_) {
+                            chapterInfo.textContent = 'Chapter details unavailable. Try again.';
+                            return;
+                        }
+                        chapterInfo.textContent = info.chapterCount + ' English chapter listings' + (info.latestChapter ? ' · Latest: ' + info.latestChapter : '');
+                        if (info.description) card.querySelector('p').textContent = info.description;
+                        details.remove();
+                    });
+                    card.append(details);
                     const actions = element('div', 'jm-actions'); actions.append(button('Request & monitor', async () => { await api('requests', 'POST', { sourceId: s.sourceId, url: s.url }); message(`“${s.title}” requested. Available chapters are queued and monitoring is on.`); }, 'jm-primary')); card.append(actions); results.append(card);
                 }
                 if (data.errors.length) { const errors = element('details'); errors.append(element('summary', '', 'Source diagnostics'), element('pre', '', data.errors.map(x => x.sourceId + ': ' + x.error).join('\n'))); main.append(errors); }
