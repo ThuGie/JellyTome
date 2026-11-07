@@ -9,6 +9,15 @@
     "imageUrl": "https://raw.githubusercontent.com/ThuGie/JellyTome/main/thumb.png",
     "versions": [
       {
+        "version": "0.1.0.14",
+        "changelog": "- Add verified Madara sources LHTranslation, MangaPark.tv, ManhwaReads, Ruby Comics, and Yaksha Comics.\n- Let administrators redownload a completed chapter. Keep its archive until the replacement is ready.\n- Show progress by series in the library and live Downloads view, with a direct link after requesting a manga.",
+        "targetAbi": "10.11.3.0",
+        "sourceUrl": "https://github.com/ThuGie/JellyTome/releases/download/v0.1.0.14/JellyTome_0.1.0.14.zip",
+        "checksum": "7702e18fc0ffecf2b873b96306c6c00a",
+        "timestamp": "2026-11-07T17:00:01.926973+00:00",
+        "dependencies": []
+      },
+      {
         "version": "0.1.0.13",
         "changelog": "- Start parallel chapter downloads in numeric order within the configured limits.\n- Queue each chapter list as a batch so the scheduler sees the earlier chapters before filling its slots.",
         "targetAbi": "10.11.3.0",
