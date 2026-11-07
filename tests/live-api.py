@@ -39,6 +39,8 @@ call('/JellyManga/admin/sources/mangapill/downloads','PUT',dict(maxConcurrentDow
 call('/JellyManga/session');assert call('/JellyManga/chapters/'+chapter_id+'/manifest')['pages']==2
 assert call('/JellyManga/chapters/'+chapter_id+'/pages/0')==png
 call('/JellyManga/chapters/'+chapter_id+'/pages/-1',expected=400)
+assert call('/JellyManga/covers/'+series_id)==png
+call('/JellyManga/covers/'+series_id,token=None,expected=401)
 now=datetime.datetime.now(datetime.timezone.utc).isoformat();progress=dict(seriesId=series_id,chapterId=chapter_id,page=1,bookmarked=True,updatedAt=now)
 call('/JellyManga/progress','PUT',progress,expected=204);assert next(p for p in call('/JellyManga/progress') if p['chapterId']==chapter_id)['page']==1
 call('/JellyManga/progress','PUT',progress|dict(page=999),expected=400)
@@ -48,7 +50,7 @@ try:
     user=call('/Users/New','POST',dict(Name=name,Password=password));user_id=user['Id'];policy=user['Policy'];policy.update(IsAdministrator=False,EnableAllFolders=False,EnabledFolders=[])
     call('/Users/'+user_id+'/Policy','POST',policy,expected=204)
     auth=call('/Users/AuthenticateByName','POST',dict(Username=name,Pw=password));token=auth['AccessToken']
-    for endpoint in ['/session','/library','/downloads','/progress','/sources','/chapters/'+chapter_id+'/manifest','/chapters/'+chapter_id+'/pages/0','/admin/overview','/admin/sources','/admin/settings']:
+    for endpoint in ['/session','/library','/downloads','/progress','/sources','/chapters/'+chapter_id+'/manifest','/chapters/'+chapter_id+'/pages/0','/covers/'+series_id,'/admin/overview','/admin/sources','/admin/settings']:
         call('/JellyManga'+endpoint,token=token,expected=403)
     policy['EnabledFolders']=[session['libraryId']];call('/Users/'+user_id+'/Policy','POST',policy,expected=204)
     call('/JellyManga/admin/sources/mangapill/downloads','PUT',dict(maxConcurrentDownloads=4),token=token,expected=403)

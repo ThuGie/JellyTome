@@ -70,7 +70,7 @@ public sealed class Store
     {
         lock (_gate)
         {
-            var job = All<DownloadJob>("job").FirstOrDefault(j => j.Status == "Queued" && !busySources.Contains(j.SourceId) && enabled.Contains(j.SourceId) && (j.RetryAt == null || j.RetryAt <= DateTimeOffset.UtcNow));
+            var job = All<DownloadJob>("job").Where(j => j.Status == "Queued" && !busySources.Contains(j.SourceId) && enabled.Contains(j.SourceId) && (j.RetryAt == null || j.RetryAt <= DateTimeOffset.UtcNow)).OrderBy(j => j.Chapter.Number).ThenBy(j => j.Chapter.SeriesId, StringComparer.Ordinal).ThenBy(j => j.Chapter.Id, StringComparer.Ordinal).FirstOrDefault();
             if (job == null) return null;
             job = job with { Status = "Downloading", Attempts = job.Attempts + 1, Error = null }; Put("job", job.Chapter.Id, job); return job;
         }

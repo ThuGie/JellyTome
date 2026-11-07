@@ -10,4 +10,6 @@
 
 #jm-app .jm-directory-entry{white-space:normal;overflow-wrap:anywhere;word-break:break-word} #jm-app .jm-directory-entry .material-icons{flex-shrink:0}
 
+#jm-app .jm-cover{position:relative;aspect-ratio:2/3;width:100%;overflow:hidden;border-radius:8px;background:#121722}#jm-app .jm-cover img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}#jm-app .jm-cover-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;color:var(--jm-muted);background:linear-gradient(145deg,#303c50,#171d28);font-size:14px}
+
 #jm-app .jm-reader-pages.jm-vertical{overflow:visible}#jm-app .jm-vertical-page{position:relative;margin:0 auto;max-width:950px;overflow:hidden;background:#10141b}#jm-app .jm-vertical-page img{width:100%!important;max-width:100%;height:auto;margin:0}#jm-app .jm-vertical-page button{margin:20px}

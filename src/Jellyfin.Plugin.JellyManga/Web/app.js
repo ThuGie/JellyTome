@@ -5,6 +5,7 @@
     let root, main, session, current = 'library', poll, reader, generation = 0, pageAbort, pageObserver;
     let progressWrites = Promise.resolve();
     const blobUrls = new Map();
+    const coverUrls = new Set(); let coverObserver;
     const element = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
     const button = (text, action, cls = '') => { const b = element('button', cls, text); b.type = 'button'; b.onclick = async () => { b.disabled = true; try { await action(); } catch (e) { message(e.message, true); } finally { b.disabled = false; } }; return b; };
     const sessionHeaders = () => { const headers = {}; ApiClient.setRequestHeaders(headers); return headers; };
@@ -13,10 +14,34 @@
         if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error || data.Message || `Request failed (${response.status})`); }
         return response.status === 204 ? null : response.json();
     };
+    function cover(series) {
+        const frame = element('div', 'jm-cover'); const fallback = element('span', 'jm-cover-fallback', 'Loading cover…'); frame.append(fallback);
+        frame.dataset.coverId = series.id; frame.dataset.coverTitle = series.title;
+        if (!coverObserver) coverObserver = new IntersectionObserver(entries => {
+            for (const entry of entries) {
+                if (!entry.isIntersecting) continue;
+                coverObserver.unobserve(entry.target); loadCover(entry.target);
+            }
+        }, { root, rootMargin: '400px', threshold: 0 });
+        coverObserver.observe(frame); return frame;
+    }
+    async function loadCover(frame) {
+        const signal = pageAbort.signal, fallback = frame.querySelector('.jm-cover-fallback');
+        try {
+            const response = await fetch(ApiClient.getUrl('JellyManga/covers/' + encodeURIComponent(frame.dataset.coverId)), { credentials: 'same-origin', headers: sessionHeaders(), signal });
+            if (!response.ok) throw new Error('Cover unavailable');
+            const data = await response.blob(); if (signal.aborted || !frame.isConnected) return;
+            const url = URL.createObjectURL(data); coverUrls.add(url);
+            const image = element('img'); image.alt = frame.dataset.coverTitle + ' thumbnail'; image.decoding = 'async';
+            image.onload = () => { fallback.hidden = true; };
+            image.onerror = () => { image.remove(); fallback.hidden = false; fallback.textContent = 'Cover unavailable'; coverUrls.delete(url); URL.revokeObjectURL(url); };
+            image.src = url; frame.append(image);
+        } catch (error) { if (error.name !== 'AbortError' && frame.isConnected) fallback.textContent = 'Cover unavailable'; }
+    }
     function message(text, error = false) { if (!main) return; let box = main.querySelector('.jm-status'); if (!box) { box = element('div'); box.setAttribute('role', 'status'); main.prepend(box); } box.className = 'jm-status' + (error ? ' jm-error' : ''); box.textContent = text; }
     function empty(text) { main.append(element('div', 'jm-empty', text)); }
     function heading(title, subtitle) { main.append(element('div', 'jm-kicker', 'YOUR NEXT CHAPTER'), element('h1', '', title)); if (subtitle) main.append(element('p', 'jm-lede', subtitle)); }
-    function releaseImages() { pageObserver?.disconnect(); pageAbort?.abort(); pageAbort = new AbortController(); for (const value of blobUrls.values()) URL.revokeObjectURL(value); blobUrls.clear(); }
+    function releaseImages() { coverObserver?.disconnect(); coverObserver = null; for (const url of coverUrls) URL.revokeObjectURL(url); coverUrls.clear(); pageObserver?.disconnect(); pageAbort?.abort(); pageAbort = new AbortController(); for (const value of blobUrls.values()) URL.revokeObjectURL(value); blobUrls.clear(); }
     function close(push = true) { const embedded = root?.dataset.embedded === '1'; generation++; clearInterval(poll); reader = null; releaseImages(); root?.remove(); root = null; main = null; document.removeEventListener('keydown', keys); if (push && !embedded && history.state?.jellyManga) history.back(); }
     async function open(tab = 'library', options = {}) {
         if (typeof ApiClient === 'undefined' || !ApiClient.accessToken()) return;
@@ -63,7 +88,7 @@
                 if (version !== generation || number !== searchNumber) return;
                 message(`${data.results.length} results${data.errors.length ? ` · ${data.errors.length} sources could not respond` : ''}`);
                 for (const s of data.results) {
-                    const card = element('article', 'jm-card'); card.append(element('div', 'jm-badge', sources.find(x => x.id === s.sourceId)?.name || s.sourceId), element('h3', '', s.title), element('p', '', s.description || 'English chapters · automatic release monitoring'));
+                    const card = element('article', 'jm-card'); card.append(cover(s), element('div', 'jm-badge', sources.find(x => x.id === s.sourceId)?.name || s.sourceId), element('h3', '', s.title), element('p', '', s.description || 'English chapters · automatic release monitoring'));
                     const actions = element('div', 'jm-actions'); actions.append(button('Request & monitor', async () => { await api('requests', 'POST', { sourceId: s.sourceId, url: s.url }); message(`“${s.title}” requested. Available chapters are queued and monitoring is on.`); }, 'jm-primary')); card.append(actions); results.append(card);
                 }
                 if (data.errors.length) { const errors = element('details'); errors.append(element('summary', '', 'Source diagnostics'), element('pre', '', data.errors.map(x => x.sourceId + ': ' + x.error).join('\n'))); main.append(errors); }
@@ -77,7 +102,7 @@
         if (!data.length) { empty(continuing ? 'Start reading a chapter to see it here.' : 'Your library is waiting. Discover a series to start downloading.'); return; }
         const grid = element('div', 'jm-grid'); main.append(grid);
         for (const item of data) {
-            const card = element('article', 'jm-card'); card.append(element('div', 'jm-badge', item.series.sourceId), element('h3', '', item.series.title), element('p', '', `${item.downloaded} chapters downloaded · ${item.monitoring ? 'Monitoring' : 'Not monitoring'}`));
+            const card = element('article', 'jm-card'); card.append(cover(item.series), element('div', 'jm-badge', item.series.sourceId), element('h3', '', item.series.title), element('p', '', `${item.downloaded} chapters downloaded · ${item.monitoring ? 'Monitoring' : 'Not monitoring'}`));
             const actions = element('div', 'jm-actions'); actions.append(button(item.progress ? 'Continue reading' : 'View chapters', () => item.progress ? read(item.progress.chapterId, item.progress.page, item.progress.bookmarked) : chapterList(item.series)));
             if (item.progress) actions.append(button('Chapters', () => chapterList(item.series))); card.append(actions); grid.append(card);
         }

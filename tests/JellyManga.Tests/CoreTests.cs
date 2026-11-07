@@ -28,6 +28,23 @@ public sealed class CoreTests : IDisposable
         var reopened = Store(); reopened.Recover(); Assert.Equal("Queued", reopened.Get<DownloadJob>("job", chapter.Id)!.Status);
     }
     [Fact]
+    public void QueueClaimsChaptersInNumericOrderAfterRestart()
+    {
+        var store = Store();
+        foreach (var number in new decimal[] { 10, 2, 1.5m, 1 })
+        {
+            var chapter = Chapter() with { Id = Identity.For("order", number.ToString(System.Globalization.CultureInfo.InvariantCulture)), Number = number };
+            store.Enqueue(chapter, "fixture", "user");
+        }
+        store = Store();
+        foreach (var expected in new decimal[] { 1, 1.5m, 2, 10 })
+        {
+            var job = store.Claim(new HashSet<string>(), new HashSet<string> { "fixture" })!;
+            Assert.Equal(expected, job.Chapter.Number);
+            Assert.True(store.Finish(job with { Status = "Complete" }));
+        }
+    }
+    [Fact]
     public void QueueHonorsWebsiteAndGlobalLimitsIncludingChanges()
     {
         var store = Store();

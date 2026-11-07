@@ -82,7 +82,7 @@ public sealed class RuleSource(SourceDefinition definition, ISourceHttp http) : 
                 var cover = image == null ? "" : Extraction.Image(image, definition.ImageAttribute);
                 var coverUrl = "";
                 if (cover.Length > 0)
-                    try { coverUrl = Resolve(cover, url.ToString()).ToString(); }
+                    try { coverUrl = SafeHttp.Resolve(cover, url.ToString(), SourceRegistry.CoverDefinition(definition, new Uri(url, cover).ToString())).ToString(); }
                     catch (Exception ex) when (ex is ArgumentException or UriFormatException) { /* Optional cover hosts must not break title search. */ }
                 output.Add(MakeSeries(href, Extraction.Text(link), cover: coverUrl));
             }
@@ -98,7 +98,17 @@ public sealed class RuleSource(SourceDefinition definition, ISourceHttp http) : 
         if (definition.Kind == "json") { using var json = JsonDocument.Parse(text); return MakeSeries(uri.ToString(), Extraction.Value(json.RootElement, definition.JsonTitlePath)); }
         var doc = await _parser.ParseDocumentAsync(text, ct); var title = Extraction.Text(doc.QuerySelector(definition.TitleSelector));
         if (title.Length == 0) throw new InvalidDataException("Series title selector returned no title; source rules may have changed.");
-        return MakeSeries(uri.ToString(), title, Extraction.Text(doc.QuerySelector(definition.DescriptionSelector)));
+        var image = doc.QuerySelector("meta[property='og:image']")?.GetAttribute("content");
+        if (string.IsNullOrWhiteSpace(image))
+        {
+            var node = doc.QuerySelector(".summary_image img, .manga-info-pic img, .thumb img");
+            if (node != null) image = Extraction.Image(node, definition.ImageAttribute);
+        }
+        var cover = "";
+        if (!string.IsNullOrWhiteSpace(image))
+            try { cover = SafeHttp.Resolve(image, uri.ToString(), SourceRegistry.CoverDefinition(definition, new Uri(uri, image).ToString())).ToString(); }
+            catch (ArgumentException) { /* An optional cover must not prevent a request. */ }
+        return MakeSeries(uri.ToString(), title, Extraction.Text(doc.QuerySelector(definition.DescriptionSelector)), cover);
     }
     public async Task<IReadOnlyList<Chapter>> Chapters(Series series, CancellationToken ct)
     {

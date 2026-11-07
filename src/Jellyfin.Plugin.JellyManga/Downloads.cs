@@ -135,7 +135,7 @@ public sealed class MangaService(Store store, SourceRegistry sources)
             var previous = store.Get<Subscription>("series", series.Id);
             var subscription = new Subscription(series, true, DateTimeOffset.UtcNow);
             store.Put("series", series.Id, subscription);
-            foreach (var chapter in chapters.Where(c => c.Language == "en")) store.Enqueue(chapter, sourceId, user);
+            foreach (var chapter in chapters.Where(c => c.Language == "en").OrderBy(c => c.Number)) store.Enqueue(chapter, sourceId, user);
             store.Put("request", Identity.For(user, series.Id), new { user, seriesId = series.Id, requestedAt = DateTimeOffset.UtcNow });
             store.Event("Request", $"{series.Title}: queued available English chapters from {sourceId} and enabled monitoring.");
             return subscription;
@@ -151,7 +151,7 @@ public sealed class MangaService(Store store, SourceRegistry sources)
             {
                 var adapter = sources.Adapter(subscription.Series.SourceId);
                 var chapters = await adapter.Chapters(subscription.Series, ct);
-                foreach (var chapter in chapters.Where(c => c.Language == "en")) store.Enqueue(chapter, adapter.Definition.Id, "monitor");
+                foreach (var chapter in chapters.Where(c => c.Language == "en").OrderBy(c => c.Number)) store.Enqueue(chapter, adapter.Definition.Id, "monitor");
                 store.UpdateSubscription(subscription.Series.Id, current => current with { LastChecked = DateTimeOffset.UtcNow, Error = null });
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }

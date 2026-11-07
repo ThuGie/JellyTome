@@ -16,6 +16,7 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         services.AddSingleton<IPageEncoder, AvifEncoder>();
         services.AddSingleton<ChapterDownloader>();
         services.AddSingleton<MangaService>();
+        services.AddSingleton<CoverService>();
         services.AddSingleton<SourceTester>();
         services.AddSingleton<QueueService>();
         services.AddHostedService(provider => provider.GetRequiredService<QueueService>());

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0.8
+
+- Render lazy-loaded thumbnails in search, library, and Continue Reading through authenticated Jellyfin endpoints, with local cover caching and source referrers.
+- Fetch missing cover metadata for existing library entries, retain source identities, retry unavailable covers with backoff, and use a downloaded page when no source cover is available.
+- Include cover art from MangaDex, Flame Comics, and HTML source details; retain private-network and source-host validation.
+- Start eligible queued chapters in numeric order, including after restart, instead of archive-ID order. Concurrent downloads may finish out of order.
+
 ## 0.1.0.7
 
 - Add AVIF image validation and image/avif responses for converted CBZ chapters.

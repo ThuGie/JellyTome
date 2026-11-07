@@ -20,7 +20,9 @@ public sealed class FlameSource(SourceDefinition definition, ISourceHttp http) :
     {
         var url = definition.BaseUrl.TrimEnd('/') + "/series/" + item.GetProperty("series_id").ToString();
         var description = item.TryGetProperty("description", out var text) ? new HtmlParser().ParseDocument(text.GetString() ?? "").Body?.TextContent ?? "" : "";
-        return new(Identity.For(definition.Id, url), definition.Id, url, item.GetProperty("title").GetString()!, description);
+        var cover = item.TryGetProperty("cover", out var file) && file.ValueKind == JsonValueKind.String
+            ? "https://cdn.flamecomics.xyz/uploads/images/series/" + item.GetProperty("series_id") + "/" + Uri.EscapeDataString(file.GetString()!) : "";
+        return new(Identity.For(definition.Id, url), definition.Id, url, item.GetProperty("title").GetString()!, description, cover);
     }
     public async Task<IReadOnlyList<Series>> Search(string query, CancellationToken ct)
     {

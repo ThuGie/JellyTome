@@ -12,7 +12,12 @@ public sealed class MangaDexSource(SourceDefinition definition, ISourceHttp http
         var id = item.GetProperty("id").GetString()!; var attributes = item.GetProperty("attributes"); var titles = attributes.GetProperty("title");
         var title = titles.TryGetProperty("en", out var en) ? en.GetString()! : titles.EnumerateObject().First().Value.GetString()!;
         var description = attributes.GetProperty("description").TryGetProperty("en", out var d) ? d.GetString()! : "";
-        return new(Identity.For(definition.Id, id), definition.Id, "https://mangadex.org/title/" + id, title, description);
+        var cover = "";
+        if (item.TryGetProperty("relationships", out var relationships))
+            foreach (var relationship in relationships.EnumerateArray())
+                if (relationship.GetProperty("type").GetString() == "cover_art" && relationship.TryGetProperty("attributes", out var coverAttributes) && coverAttributes.TryGetProperty("fileName", out var fileName))
+                { cover = "https://uploads.mangadex.org/covers/" + id + "/" + Uri.EscapeDataString(fileName.GetString()!) + ".256.jpg"; break; }
+        return new(Identity.For(definition.Id, id), definition.Id, "https://mangadex.org/title/" + id, title, description, cover);
     }
     private static string ExternalId(string url, string segment)
     {
@@ -22,12 +27,12 @@ public sealed class MangaDexSource(SourceDefinition definition, ISourceHttp http
     }
     public async Task<IReadOnlyList<Series>> Search(string query, CancellationToken ct)
     {
-        using var json = await Get("/manga?limit=50&availableTranslatedLanguage[]=en&title=" + Uri.EscapeDataString(query), ct);
+        using var json = await Get("/manga?limit=50&includes[]=cover_art&availableTranslatedLanguage[]=en&title=" + Uri.EscapeDataString(query), ct);
         return json.RootElement.GetProperty("data").EnumerateArray().Select(Series).ToList();
     }
     public async Task<Series> Details(string url, CancellationToken ct)
     {
-        using var json = await Get("/manga/" + ExternalId(url, "title"), ct); return Series(json.RootElement.GetProperty("data"));
+        using var json = await Get("/manga/" + ExternalId(url, "title") + "?includes[]=cover_art", ct); return Series(json.RootElement.GetProperty("data"));
     }
     public async Task<IReadOnlyList<Chapter>> Chapters(Series series, CancellationToken ct)
     {

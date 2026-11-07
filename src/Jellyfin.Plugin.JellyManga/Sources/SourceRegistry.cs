@@ -68,6 +68,13 @@ public sealed class SourceRegistry(Store store, ISourceHttp http)
     }
     public void Save(SourceDefinition definition) { Validate(definition); store.Put("source", definition.Id, definition with { Status = "Untested" }); store.Delete("check", definition.Id); }
     public void Remove(string id) { var d = Get(id, false); store.Put("source", id, d with { Enabled = false, Removed = true }); }
+    public static SourceDefinition CoverDefinition(SourceDefinition source, string url)
+    {
+        var uri = new Uri(url, UriKind.Absolute);
+        var proxies = new[] { "i0.wp.com", "i1.wp.com", "i2.wp.com", "i3.wp.com" };
+        return proxies.Contains(uri.IdnHost, StringComparer.OrdinalIgnoreCase)
+            ? source with { AllowedHosts = source.AllowedHosts.Append(uri.IdnHost).Distinct().ToArray() } : source;
+    }
     public SourceDefinition ImageDefinition(SourceDefinition definition, string url)
     {
         if (definition.Kind != "mangadex") return definition;

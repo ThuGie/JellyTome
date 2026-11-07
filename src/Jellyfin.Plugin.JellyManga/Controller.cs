@@ -35,7 +35,7 @@ public sealed class MangaJsonFilter : ResultFilterAttribute
 }
 
 [ApiController, Route("JellyManga"), Authorize, MangaExceptionFilter, MangaJsonFilter]
-public sealed class MangaController(Store store, SourceRegistry sources, MangaService manga, LibraryStorage storage, QueueService queue, SourceTester tester, IUserManager users, ILibraryManager libraries) : ControllerBase
+public sealed class MangaController(Store store, SourceRegistry sources, CoverService covers, MangaService manga, LibraryStorage storage, QueueService queue, SourceTester tester, IUserManager users, ILibraryManager libraries) : ControllerBase
 {
     private Guid UserId()
     {
@@ -83,6 +83,7 @@ public sealed class MangaController(Store store, SourceRegistry sources, MangaSe
             catch (Exception ex) { lock (errors) errors.Add(new { sourceId = source.Id, error = ex.Message }); }
             finally { concurrency.Release(); }
         }));
+        foreach (var series in results) covers.Remember(series);
         return Ok(new { results, errors });
     }
     [HttpPost("requests")]
@@ -95,6 +96,13 @@ public sealed class MangaController(Store store, SourceRegistry sources, MangaSe
     {
         Access(); var jobs = store.All<DownloadJob>("job"); var progress = store.All<ReadingProgress>("progress:" + UserId().ToString("N"));
         return Ok(store.All<Subscription>("series").Select(s => new { s.Series, s.Monitoring, s.LastChecked, s.Error, downloaded = jobs.Count(j => j.Chapter.SeriesId == s.Series.Id && j.Status == "Complete"), progress = progress.Where(p => p.SeriesId == s.Series.Id).OrderByDescending(p => p.UpdatedAt).FirstOrDefault() }));
+    }
+    [HttpGet("covers/{id}")]
+    public async Task<ActionResult> Cover(string id, CancellationToken ct)
+    {
+        Access(); var bytes = await covers.Get(id, ct); var extension = LibraryStorage.ImageExtension(bytes);
+        Response.Headers.CacheControl = "private, max-age=300";
+        return File(bytes, extension switch { ".jpg" => "image/jpeg", ".png" => "image/png", ".webp" => "image/webp", ".avif" => "image/avif", _ => "image/gif" });
     }
     [HttpGet("library/{id}/chapters")]
     public ActionResult Chapters(string id) { Access(); return Ok(store.All<DownloadJob>("job").Where(j => j.Chapter.SeriesId == id).OrderBy(j => j.Chapter.Number)); }
