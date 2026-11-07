@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0.11
+
+- Download one chapter at a time per series in numeric order. Earlier chapters that are paused, waiting for retry, or failed hold later chapters until resolved or explicitly cancelled.
+- Keep concurrent download slots available to other series within the configured limits.
+
 ## 0.1.0.10
 
 - Show the listed chapter range and flag sources whose numbered chapters start after chapter 1.

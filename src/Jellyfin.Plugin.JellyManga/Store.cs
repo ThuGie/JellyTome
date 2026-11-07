@@ -71,7 +71,17 @@ public sealed class Store
         lock (_gate)
         {
             var removals = All<string>("removing-series").ToHashSet();
-            var job = All<DownloadJob>("job").Where(j => !removals.Contains(j.Chapter.SeriesId) && j.Status == "Queued" && !busySources.Contains(j.SourceId) && enabled.Contains(j.SourceId) && (j.RetryAt == null || j.RetryAt <= DateTimeOffset.UtcNow)).OrderBy(j => j.Chapter.Number).ThenBy(j => j.Chapter.SeriesId, StringComparer.Ordinal).ThenBy(j => j.Chapter.Id, StringComparer.Ordinal).FirstOrDefault();
+            var now = DateTimeOffset.UtcNow;
+            var job = All<DownloadJob>("job")
+                .Where(j => !removals.Contains(j.Chapter.SeriesId) && j.Status is not ("Complete" or "Cancelled"))
+                .GroupBy(j => j.Chapter.SeriesId)
+                .Where(series => series.All(j => j.Status != "Downloading"))
+                .Select(series => series.OrderBy(j => j.Chapter.Number).ThenBy(j => j.Chapter.Id, StringComparer.Ordinal).First())
+                .Where(j => j.Status == "Queued" && !busySources.Contains(j.SourceId) && enabled.Contains(j.SourceId)
+                    && (j.RetryAt == null || j.RetryAt <= now))
+                .OrderBy(j => j.Chapter.Number)
+                .ThenBy(j => j.Chapter.SeriesId, StringComparer.Ordinal)
+                .FirstOrDefault();
             if (job == null) return null;
             job = job with { Status = "Downloading", Attempts = job.Attempts + 1, Error = null }; Put("job", job.Chapter.Id, job); return job;
         }

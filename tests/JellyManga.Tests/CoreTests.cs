@@ -74,15 +74,37 @@ public sealed class CoreTests : IDisposable
         }
     }
     [Fact]
+    public void LaterChaptersWaitForEarlierChaptersEvenWithFreeSlots()
+    {
+        var store = Store();
+        foreach (var title in new[] { "Chapter 11", "Chapter 2", "Chapter 1" })
+            store.Enqueue(Chapter(title), "fixture", "user");
+        var limits = new Dictionary<string, int> { ["fixture"] = 4 };
+        var counts = new Dictionary<string, int>();
+
+        var first = store.Claim(counts, limits, 4)!;
+        Assert.Equal(1, first.Chapter.Number);
+        Assert.Null(store.Claim(counts, limits, 4));
+        Assert.True(store.Finish(first with { Status = "Queued", RetryAt = DateTimeOffset.UtcNow.AddHours(1) }));
+        Assert.Null(store.Claim(counts, limits, 4));
+
+        store.Action(first.Chapter.Id, "retry");
+        var retry = store.Claim(counts, limits, 4)!;
+        Assert.Equal(first.Chapter.Id, retry.Chapter.Id);
+        Assert.True(store.Finish(retry with { Status = "Complete" }));
+        Assert.Equal(2, store.Claim(counts, limits, 4)!.Chapter.Number);
+    }
+    [Fact]
     public void QueueHonorsWebsiteAndGlobalLimitsIncludingChanges()
     {
         var store = Store();
-        for (var i = 0; i < 5; i++) store.Enqueue(Chapter("Chapter " + (i + 1)), "fixture", "user");
+        for (var i = 0; i < 5; i++)
+            store.Enqueue(Chapter("Chapter " + (i + 1)) with { SeriesId = Identity.For("series", i.ToString()) }, "fixture", "user");
         var limits = new Dictionary<string, int> { ["fixture"] = 2, ["other"] = 2 };
         var counts = new Dictionary<string, int>();
         Assert.Equal("fixture", store.Claim(counts, limits, 4)!.SourceId); counts["fixture"] = 1;
         Assert.Equal("fixture", store.Claim(counts, limits, 4)!.SourceId); counts["fixture"] = 2;
-        store.Enqueue(Chapter("Other Chapter 10"), "other", "user");
+        store.Enqueue(Chapter("Other Chapter 10") with { SeriesId = Identity.For("other series") }, "other", "user");
         Assert.Equal("other", store.Claim(counts, limits, 4)!.SourceId); counts["other"] = 1;
         Assert.Null(store.Claim(counts, limits, 4));
         limits["fixture"] = 4;
