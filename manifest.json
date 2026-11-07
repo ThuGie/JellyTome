@@ -9,6 +9,15 @@
     "imageUrl": "https://raw.githubusercontent.com/ThuGie/JellyTome/main/thumb.png",
     "versions": [
       {
+        "version": "0.1.0.8",
+        "changelog": "- Render lazy-loaded thumbnails in search, library, and Continue Reading through authenticated Jellyfin endpoints, with local cover caching and source referrers.\n- Fetch missing cover metadata for existing library entries, retain source identities, retry unavailable covers with backoff, and use a downloaded page when no source cover is available.\n- Include cover art from MangaDex, Flame Comics, and HTML source details; retain private-network and source-host validation.\n- Start eligible queued chapters in numeric order, including after restart, instead of archive-ID order. Concurrent downloads may finish out of order.",
+        "targetAbi": "10.11.3.0",
+        "sourceUrl": "https://github.com/ThuGie/JellyTome/releases/download/v0.1.0.8/JellyTome_0.1.0.8.zip",
+        "checksum": "6615d5b975a7a97d696e08c3d96c8746",
+        "timestamp": "2026-11-07T01:06:25.700501+00:00",
+        "dependencies": []
+      },
+      {
         "version": "0.1.0.7",
         "changelog": "- Add AVIF image validation and image/avif responses for converted CBZ chapters.\n- Default new downloads to full-resolution AVIF quality 65; add conversion and quality controls in Settings.\n- Use Jellyfin FFmpeg with libaom-av1, two encoder slots, cancellation, staged output validation, and atomic completion.\n- Retain existing AVIF and animated pages. Supply a backed-up script for existing CBZ conversion.",
         "targetAbi": "10.11.3.0",
