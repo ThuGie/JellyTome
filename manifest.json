@@ -9,6 +9,15 @@
     "imageUrl": "https://raw.githubusercontent.com/ThuGie/JellyTome/main/thumb.png",
     "versions": [
       {
+        "version": "0.1.0.12",
+        "changelog": "- Restore ZinManga downloads on a working replacement domain and retrieve every chapter page from its public listings API.\n- Verify complete downloads from Athrea Scans, ManhuaNext, and MangaFree.\n- Retire bundled sources without verified downloads and keep verification labels concise in the Sources list.\n- Add library update dates, sorting, and a Recent updates view with direct links to the latest downloaded chapters.\n- Display the source date for the latest listed chapter when provided.",
+        "targetAbi": "10.11.3.0",
+        "sourceUrl": "https://github.com/ThuGie/JellyTome/releases/download/v0.1.0.12/JellyTome_0.1.0.12.zip",
+        "checksum": "ae65179a479a9a89886372298472931e",
+        "timestamp": "2026-11-07T16:36:52.418025+00:00",
+        "dependencies": []
+      },
+      {
         "version": "0.1.0.11",
         "changelog": "- Download one chapter at a time per series in numeric order. Earlier chapters that are paused, waiting for retry, or failed hold later chapters until resolved or explicitly cancelled.\n- Keep concurrent download slots available to other series within the configured limits.",
         "targetAbi": "10.11.3.0",
