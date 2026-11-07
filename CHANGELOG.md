@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0.10
+
+- Show the listed chapter range and flag sources whose numbered chapters start after chapter 1.
+- Let administrators stop monitoring and remove a manga, its queued downloads, archives, and reading progress from the shared library.
+
 ## 0.1.0.9
 
 - Show the downloaded chapter count on matching search results.

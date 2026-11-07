@@ -132,7 +132,7 @@ public sealed class MangaService(Store store, SourceRegistry sources)
         await _requests.WaitAsync(ct);
         try
         {
-            var previous = store.Get<Subscription>("series", series.Id);
+            if (store.IsRemovingSeries(series.Id)) throw new ArgumentException("Finish removing this manga before requesting it again.");
             var subscription = new Subscription(series, true, DateTimeOffset.UtcNow);
             store.Put("series", series.Id, subscription);
             foreach (var chapter in chapters.Where(c => c.Language == "en").OrderBy(c => c.Number)) store.Enqueue(chapter, sourceId, user);
@@ -142,6 +142,37 @@ public sealed class MangaService(Store store, SourceRegistry sources)
         }
         finally { _requests.Release(); }
     }
+    public async Task Remove(string id, QueueService queue, LibraryStorage storage, CancellationToken ct)
+    {
+        Identity.ValidId(id);
+        await _requests.WaitAsync(ct);
+        try
+        {
+            if (store.Get<Subscription>("series", id) == null) throw new KeyNotFoundException("Manga not found.");
+            store.Put("removing-series", id, id);
+            store.UpdateSubscription(id, current => current with { Monitoring = false });
+            var jobs = store.All<DownloadJob>("job").Where(job => job.Chapter.SeriesId == id).ToArray();
+            await queue.StopDownloads(jobs.Select(job => job.Chapter.Id));
+            var archives = jobs
+                .Select(job =>
+                {
+                    Identity.ValidId(job.Chapter.Id);
+                    var archive = storage.Absolute(Path.Combine(id, job.Chapter.Id + ".cbz"));
+                    if (job.RelativePath != null && storage.Absolute(job.RelativePath) != archive)
+                        throw new InvalidDataException("Chapter archive is outside its expected manga path.");
+                    return archive;
+                })
+                .ToArray();
+            foreach (var archive in archives)
+            {
+                try { File.Delete(archive); }
+                catch (DirectoryNotFoundException) { }
+            }
+            store.ForgetSeries(id);
+        }
+        finally { _requests.Release(); }
+    }
+
     public async Task Monitor(CancellationToken ct)
     {
         foreach (var subscription in store.All<Subscription>("series").Where(s => s.Monitoring))
@@ -151,8 +182,15 @@ public sealed class MangaService(Store store, SourceRegistry sources)
             {
                 var adapter = sources.Adapter(subscription.Series.SourceId);
                 var chapters = await adapter.Chapters(subscription.Series, ct);
-                foreach (var chapter in chapters.Where(c => c.Language == "en").OrderBy(c => c.Number)) store.Enqueue(chapter, adapter.Definition.Id, "monitor");
-                store.UpdateSubscription(subscription.Series.Id, current => current with { LastChecked = DateTimeOffset.UtcNow, Error = null });
+                await _requests.WaitAsync(ct);
+                try
+                {
+                    var id = subscription.Series.Id;
+                    if (store.IsRemovingSeries(id) || store.Get<Subscription>("series", id)?.Monitoring != true) continue;
+                    foreach (var chapter in chapters.Where(c => c.Language == "en").OrderBy(c => c.Number)) store.Enqueue(chapter, adapter.Definition.Id, "monitor");
+                    store.UpdateSubscription(id, current => current with { LastChecked = DateTimeOffset.UtcNow, Error = null });
+                }
+                finally { _requests.Release(); }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex) { store.UpdateSubscription(subscription.Series.Id, current => current with { LastChecked = DateTimeOffset.UtcNow, Error = ex.Message }); store.Event("Monitor error", subscription.Series.Title + ": " + ex.Message); }
@@ -163,7 +201,27 @@ public sealed class MangaService(Store store, SourceRegistry sources)
 public sealed class QueueService(Store store, SourceRegistry sources, ChapterDownloader downloader, ILogger<QueueService> logger) : BackgroundService
 {
     private readonly ConcurrentDictionary<string, (string Source, CancellationTokenSource Cancel, Task Work)> _active = new();
-    public void Cancel(string id) { if (_active.TryGetValue(id, out var active)) active.Cancel.Cancel(); }
+    private readonly object _activeGate = new();
+    public void Cancel(string id)
+    {
+        lock (_activeGate)
+            if (_active.TryGetValue(id, out var active)) active.Cancel.Cancel();
+    }
+
+    public Task StopDownloads(IEnumerable<string> ids)
+    {
+        lock (_activeGate)
+        {
+            var tasks = new List<Task>();
+            foreach (var id in ids)
+            {
+                if (!_active.TryGetValue(id, out var active)) continue;
+                active.Cancel.Cancel();
+                tasks.Add(active.Work);
+            }
+            return Task.WhenAll(tasks);
+        }
+    }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         store.Recover();
@@ -171,23 +229,34 @@ public sealed class QueueService(Store store, SourceRegistry sources, ChapterDow
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                foreach (var entry in _active.Where(e => e.Value.Work.IsCompleted).ToArray()) { if (_active.TryRemove(entry.Key, out var done)) done.Cancel.Dispose(); }
-                var config = Plugin.Instance.Configuration;
-                if (!config.Paused && !string.IsNullOrWhiteSpace(config.StoragePath))
+                lock (_activeGate)
                 {
-                    var limits = sources.All().Where(s => s.Enabled && !s.Removed).ToDictionary(s => s.Id, s => Math.Clamp(s.MaxConcurrentDownloads, 1, 8));
-                    while (_active.Count < config.DownloadConcurrency)
+                    foreach (var entry in _active.Where(e => e.Value.Work.IsCompleted).ToArray()) { if (_active.TryRemove(entry.Key, out var done)) done.Cancel.Dispose(); }
+                    var config = Plugin.Instance.Configuration;
+                    if (!config.Paused && !string.IsNullOrWhiteSpace(config.StoragePath))
                     {
-                        var counts = _active.Values.GroupBy(v => v.Source).ToDictionary(g => g.Key, g => g.Count()); var job = store.Claim(counts, limits, config.DownloadConcurrency); if (job == null) break;
-                        var cancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                        var task = Run(job, cancel.Token); _active[job.Chapter.Id] = (job.SourceId, cancel, task);
+                        var limits = sources.All().Where(s => s.Enabled && !s.Removed).ToDictionary(s => s.Id, s => Math.Clamp(s.MaxConcurrentDownloads, 1, 8));
+                        while (_active.Count < config.DownloadConcurrency)
+                        {
+                            var counts = _active.Values.GroupBy(v => v.Source).ToDictionary(g => g.Key, g => g.Count()); var job = store.Claim(counts, limits, config.DownloadConcurrency); if (job == null) break;
+                            var cancel = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                            var task = Run(job, cancel.Token); _active[job.Chapter.Id] = (job.SourceId, cancel, task);
+                        }
                     }
                 }
                 await Task.Delay(1000, stoppingToken);
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
-        finally { foreach (var a in _active.Values) a.Cancel.Cancel(); await Task.WhenAll(_active.Values.Select(a => a.Work)); foreach (var a in _active.Values) a.Cancel.Dispose(); }
+        finally
+        {
+            await StopDownloads(_active.Keys);
+            lock (_activeGate)
+            {
+                foreach (var active in _active.Values) active.Cancel.Dispose();
+                _active.Clear();
+            }
+        }
     }
     private async Task Run(DownloadJob job, CancellationToken ct)
     {

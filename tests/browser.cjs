@@ -34,7 +34,7 @@ const server = http.createServer(async (req, res) => {
     let result;
     if (route === 'session') result = { userId: 'user-1', admin: true };
     else if (route === 'sources') result = [source];
-    else if (route === 'search/' + series.id + '/details') result = { chapterCount: 12, latestChapter: 'Chapter 12', description: 'Detailed synopsis' };
+    else if (route === 'search/' + series.id + '/details') result = { chapterCount: 43, firstChapterNumber: 22, lastChapterNumber: 64, missingStart: true, latestChapter: 'Chapter 64', description: 'Detailed synopsis' };
     else if (route === 'search') result = { results: [series], errors: [], downloadedCounts: { [series.id]: 1 } };
     else if (route === 'requests') { requested++; result = { series, monitoring: true }; }
     else if (route === 'library') result = [{ series, monitoring: true, downloaded: 1, progress: progress[0] }];
@@ -72,7 +72,8 @@ const server = http.createServer(async (req, res) => {
             await page.getByRole('status').filter({ hasText: 'requested' }).waitFor(); assertions++;
             await page.getByText('1 chapter downloaded', {exact:true}).waitFor();
             await page.getByRole('button', {name:'Chapter details',exact:true}).click();
-            await page.getByText('12 English chapter listings · Latest: Chapter 12', {exact:true}).waitFor(); assertions += 2;
+            await page.getByText('43 English chapter listings · Latest: Chapter 64 · Listed range: 22–64', {exact:true}).waitFor(); assertions += 2;
+            await page.getByText('Missing the start · first numbered chapter is 22', {exact:true}).waitFor(); assertions++;
             await page.waitForFunction(() => document.querySelector('.jm-cover img')?.naturalWidth > 0); assertions++;
             assert(calls.some(call => call.startsWith('GET covers/'))); assertions++;
             await page.screenshot({ path: path.join(artifacts, name + '-discover.png') });

@@ -20,6 +20,35 @@ public sealed class CoreTests : IDisposable
     [InlineData("Ch. 0.5", "0.5")]
     public void ChapterNumbersPreserveFractions(string title, string expected) => Assert.Equal(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture), Extraction.ChapterNumber(title));
     [Fact]
+    public async Task RemovingMangaDeletesOnlyItsArchivesAndRecords()
+    {
+        var store = Store();
+        var http = new FixtureHttp();
+        var sources = new SourceRegistry(store, http);
+        var storage = new LibraryStorage(() => new Configuration { StoragePath = _root });
+        using var queue = new QueueService(store, sources, new ChapterDownloader(sources, http, storage),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<QueueService>.Instance);
+        var chapter = Chapter();
+        var other = Chapter("Chapter 2") with { SeriesId = Identity.For("other") };
+        store.Put("series", chapter.SeriesId, new Subscription(new Series(chapter.SeriesId, "fixture", "https://example.org/series", "Fixture"), true));
+        var relative = Path.Combine(chapter.SeriesId, chapter.Id + ".cbz");
+        var archive = storage.Absolute(relative);
+        Directory.CreateDirectory(Path.GetDirectoryName(archive)!);
+        File.WriteAllBytes(archive, [1]);
+        store.Put("job", chapter.Id, new DownloadJob(chapter, "fixture", "user", "Complete", RelativePath: relative));
+        store.Enqueue(Chapter("Chapter 3"), "fixture", "user");
+        store.Enqueue(other, "fixture", "user");
+        store.Put("progress:user", chapter.Id, new ReadingProgress(chapter.SeriesId, chapter.Id, 0, false, DateTimeOffset.UtcNow));
+
+        await new MangaService(store, sources).Remove(chapter.SeriesId, queue, storage, default);
+
+        Assert.False(File.Exists(archive));
+        Assert.Null(store.Get<Subscription>("series", chapter.SeriesId));
+        Assert.Empty(store.All<ReadingProgress>("progress:user"));
+        Assert.Equal(other.Id, Assert.Single(store.All<DownloadJob>("job")).Chapter.Id);
+    }
+
+    [Fact]
     public void QueueIsDurableDeduplicatedAndRecovers()
     {
         var store = Store(); var chapter = Chapter(); Parallel.For(0, 20, _ => store.Enqueue(chapter, "fixture", "user")); Assert.Single(store.All<DownloadJob>("job"));

@@ -103,7 +103,16 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
             .Where(chapter => chapter.Language == "en")
             .OrderByDescending(chapter => chapter.Number)
             .ToArray();
-        return Ok(new { details.Description, chapterCount = chapters.Length, latestChapter = chapters.FirstOrDefault()?.Title });
+        var firstNumberedChapter = chapters.LastOrDefault(chapter => chapter.Number > 0);
+        return Ok(new
+        {
+            details.Description,
+            chapterCount = chapters.Length,
+            firstChapterNumber = firstNumberedChapter?.Number,
+            lastChapterNumber = chapters.FirstOrDefault(chapter => chapter.Number > 0)?.Number,
+            latestChapter = chapters.FirstOrDefault()?.Title,
+            missingStart = firstNumberedChapter?.Number > 1
+        });
     }
     [HttpPost("requests")]
     public async Task<ActionResult> CreateRequest([FromBody] RequestBody request, CancellationToken ct)
@@ -122,6 +131,13 @@ public sealed class MangaController(Store store, SourceRegistry sources, CoverSe
         Access(); var bytes = await covers.Get(id, ct); var extension = LibraryStorage.ImageExtension(bytes);
         Response.Headers.CacheControl = "private, max-age=300";
         return File(bytes, extension switch { ".jpg" => "image/jpeg", ".png" => "image/png", ".webp" => "image/webp", ".avif" => "image/avif", _ => "image/gif" });
+    }
+    [HttpDelete("library/{id}"), Authorize(Policy = "RequiresElevation")]
+    public async Task<ActionResult> RemoveSeries(string id, CancellationToken ct)
+    {
+        Access();
+        await manga.Remove(id, queue, storage, ct);
+        return NoContent();
     }
     [HttpGet("library/{id}/chapters")]
     public ActionResult Chapters(string id) { Access(); return Ok(store.All<DownloadJob>("job").Where(j => j.Chapter.SeriesId == id).OrderBy(j => j.Chapter.Number)); }

@@ -104,6 +104,10 @@
                             return;
                         }
                         chapterInfo.textContent = info.chapterCount + ' English chapter listings' + (info.latestChapter ? ' · Latest: ' + info.latestChapter : '');
+                        if (info.firstChapterNumber != null && info.lastChapterNumber != null)
+                            chapterInfo.textContent += ' · Listed range: ' + info.firstChapterNumber + '–' + info.lastChapterNumber;
+                        if (info.missingStart)
+                            card.append(element('p', 'jm-error', 'Missing the start · first numbered chapter is ' + info.firstChapterNumber));
                         if (info.description) card.querySelector('p').textContent = info.description;
                         details.remove();
                     });
@@ -123,7 +127,13 @@
         for (const item of data) {
             const card = element('article', 'jm-card'); card.append(cover(item.series), element('div', 'jm-badge', item.series.sourceId), element('h3', '', item.series.title), element('p', '', `${item.downloaded} chapters downloaded · ${item.monitoring ? 'Monitoring' : 'Not monitoring'}`));
             const actions = element('div', 'jm-actions'); actions.append(button(item.progress ? 'Continue reading' : 'View chapters', () => item.progress ? read(item.progress.chapterId, item.progress.page, item.progress.bookmarked) : chapterList(item.series)));
-            if (item.progress) actions.append(button('Chapters', () => chapterList(item.series))); card.append(actions); grid.append(card);
+            if (item.progress) actions.append(button('Chapters', () => chapterList(item.series)));
+            if (session.admin) actions.append(button('Stop and delete', async () => {
+                if (!window.confirm('Stop monitoring and delete downloaded chapters and reading progress for “' + item.series.title + '” from the shared library?')) return;
+                await api('library/' + encodeURIComponent(item.series.id), 'DELETE');
+                await navigate(continuing ? 'continue' : 'library');
+            }));
+            card.append(actions); grid.append(card);
         }
     }
     async function chapterList(series) {

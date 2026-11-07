@@ -70,7 +70,8 @@ public sealed class Store
     {
         lock (_gate)
         {
-            var job = All<DownloadJob>("job").Where(j => j.Status == "Queued" && !busySources.Contains(j.SourceId) && enabled.Contains(j.SourceId) && (j.RetryAt == null || j.RetryAt <= DateTimeOffset.UtcNow)).OrderBy(j => j.Chapter.Number).ThenBy(j => j.Chapter.SeriesId, StringComparer.Ordinal).ThenBy(j => j.Chapter.Id, StringComparer.Ordinal).FirstOrDefault();
+            var removals = All<string>("removing-series").ToHashSet();
+            var job = All<DownloadJob>("job").Where(j => !removals.Contains(j.Chapter.SeriesId) && j.Status == "Queued" && !busySources.Contains(j.SourceId) && enabled.Contains(j.SourceId) && (j.RetryAt == null || j.RetryAt <= DateTimeOffset.UtcNow)).OrderBy(j => j.Chapter.Number).ThenBy(j => j.Chapter.SeriesId, StringComparer.Ordinal).ThenBy(j => j.Chapter.Id, StringComparer.Ordinal).FirstOrDefault();
             if (job == null) return null;
             job = job with { Status = "Downloading", Attempts = job.Attempts + 1, Error = null }; Put("job", job.Chapter.Id, job); return job;
         }
@@ -102,6 +103,25 @@ public sealed class Store
     {
         lock (_gate) { var subscription = Get<Subscription>("series", id); if (subscription != null) Put("series", id, update(subscription)); }
     }
+    public bool IsRemovingSeries(string id) => Get<string>("removing-series", id) != null;
+
+    public void ForgetSeries(string id)
+    {
+        lock (_gate)
+        {
+            using var db = Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = """
+                DELETE FROM records
+                WHERE (kind IN ('series', 'removing-series') AND id = $id)
+                   OR (kind = 'job' AND json_extract(json, '$.chapter.seriesId') = $id)
+                   OR ((kind = 'request' OR kind LIKE 'progress:%') AND json_extract(json, '$.seriesId') = $id)
+                """;
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
     public void Action(string id, string action)
     {
         lock (_gate)
